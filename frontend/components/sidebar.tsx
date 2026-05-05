@@ -16,6 +16,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useAppStore } from "@/lib/stores/app-store";
+import { useHydrated } from "@/lib/hooks/use-hydration";
 import { LanguagePicker } from "@/components/language-picker";
 import { cn } from "@/lib/utils";
 
@@ -31,17 +32,19 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const hydrated = useHydrated();
   const { sidebarOpen, toggleSidebar } = useAppStore();
+  const isOpen = hydrated ? sidebarOpen : true;
 
   return (
     <aside
       className={cn(
         "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-border bg-[#0c1222] transition-all duration-300",
-        sidebarOpen ? "w-64" : "w-[68px]"
+        isOpen ? "w-64" : "w-[68px]"
       )}
     >
       <div className="flex h-16 items-center justify-between px-4">
-        {sidebarOpen && (
+        {isOpen && (
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-lg font-bold text-white">
               L
@@ -53,7 +56,7 @@ export function Sidebar() {
           onClick={toggleSidebar}
           className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
         >
-          {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          {isOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </button>
       </div>
 
@@ -72,14 +75,14 @@ export function Sidebar() {
               )}
             >
               <item.icon size={20} className="shrink-0" />
-              {sidebarOpen && <span>{item.label}</span>}
+              {isOpen && <span>{item.label}</span>}
             </Link>
           );
         })}
       </nav>
 
       <div className="border-t border-border p-3 space-y-1">
-        <LanguagePicker collapsed={!sidebarOpen} />
+        <LanguagePicker collapsed={!isOpen} />
         <Link
           href="/guide"
           className={cn(
@@ -90,7 +93,7 @@ export function Sidebar() {
           )}
         >
           <HelpCircle size={20} className="shrink-0" />
-          {sidebarOpen && <span>User Guide</span>}
+          {isOpen && <span>User Guide</span>}
         </Link>
         <Link
           href="/settings"
@@ -102,7 +105,7 @@ export function Sidebar() {
           )}
         >
           <Settings size={20} className="shrink-0" />
-          {sidebarOpen && <span>Settings</span>}
+          {isOpen && <span>Settings</span>}
         </Link>
       </div>
     </aside>

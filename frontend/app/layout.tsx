@@ -34,7 +34,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full">
+      <body className="min-h-full" suppressHydrationWarning>
         <Sidebar />
         <main className="ml-[68px] min-h-screen transition-all duration-300 lg:ml-64">
           {children}

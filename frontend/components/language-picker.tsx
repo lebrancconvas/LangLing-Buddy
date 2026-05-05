@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Globe, Check, Search } from "lucide-react";
 import { useAppStore } from "@/lib/stores/app-store";
+import { useHydrated } from "@/lib/hooks/use-hydration";
 import { LANGUAGES, getLanguageByCode } from "@/lib/languages";
 import { cn } from "@/lib/utils";
 
@@ -12,11 +13,13 @@ interface LanguagePickerProps {
 
 export function LanguagePicker({ collapsed = false }: LanguagePickerProps) {
   const { currentLanguage, setLanguage } = useAppStore();
+  const hydrated = useHydrated();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
-  const current = getLanguageByCode(currentLanguage);
+  const displayLang = hydrated ? currentLanguage : "en";
+  const current = getLanguageByCode(displayLang);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
