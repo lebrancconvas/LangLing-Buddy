@@ -6,6 +6,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
+USER_AGENT = "LangLing/1.0 (Educational AI App; https://github.com/langling) httpx/0.27"
 
 
 class RAGEngine:
@@ -43,6 +44,12 @@ class RAGEngine:
             parts.append(f"Source: {doc['title']} ({doc['source']})\n{doc['content']}")
         return "\n\n---\n\n".join(parts)
 
+    def _get_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            timeout=15,
+            headers={"User-Agent": USER_AGENT},
+        )
+
     async def _search_wikipedia(self, api_url: str, query: str, limit: int) -> list[str]:
         params: dict[str, Any] = {
             "action": "query",
@@ -51,7 +58,7 @@ class RAGEngine:
             "srlimit": limit,
             "format": "json",
         }
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with self._get_client() as client:
             resp = await client.get(api_url, params=params)
             resp.raise_for_status()
             data = resp.json()
@@ -70,7 +77,7 @@ class RAGEngine:
             "explaintext": True,
             "format": "json",
         }
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with self._get_client() as client:
             resp = await client.get(api_url, params=params)
             resp.raise_for_status()
             data = resp.json()

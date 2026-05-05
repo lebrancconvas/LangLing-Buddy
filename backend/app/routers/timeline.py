@@ -56,6 +56,7 @@ async def generate_timeline(request: TimelineRequest):
         response = await ai_router.generate(
             prompt=prompt,
             temperature=0.7,
+            max_tokens=8192,
         )
 
         events = _parse_events(response)
@@ -93,8 +94,11 @@ def _parse_events(response: str) -> list[TimelineEvent]:
         data = json.loads(text)
         if isinstance(data, list):
             return [TimelineEvent(**evt) for evt in data]
-    except Exception as exc:
+    except json.JSONDecodeError as exc:
         logger.warning("Failed to parse timeline JSON: %s", exc)
+        events = _try_salvage_truncated_json(text)
+        if events:
+            return events
 
     return [
         TimelineEvent(
@@ -104,3 +108,21 @@ def _parse_events(response: str) -> list[TimelineEvent]:
             category="general",
         )
     ]
+
+
+def _try_salvage_truncated_json(text: str) -> list[TimelineEvent]:
+    """Attempt to recover events from a truncated JSON response."""
+    try:
+        last_complete = text.rfind("}")
+        if last_complete == -1:
+            return []
+        truncated = text[: last_complete + 1]
+        if not truncated.rstrip().endswith("]"):
+            truncated = truncated.rstrip().rstrip(",") + "]"
+        data = json.loads(truncated)
+        if isinstance(data, list) and len(data) > 0:
+            logger.info("Salvaged %d events from truncated response", len(data))
+            return [TimelineEvent(**evt) for evt in data]
+    except Exception:
+        pass
+    return []

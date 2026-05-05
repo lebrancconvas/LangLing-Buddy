@@ -5,10 +5,17 @@ import httpx
 logger = logging.getLogger(__name__)
 
 WIKIPEDIA_API_TEMPLATE = "https://{lang}.wikipedia.org/w/api.php"
+USER_AGENT = "LangLing/1.0 (Educational AI App; https://github.com/langling) httpx/0.27"
 
 
 class ContentPipeline:
     """Fetches and processes educational content from various sources."""
+
+    def _get_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            timeout=15,
+            headers={"User-Agent": USER_AGENT},
+        )
 
     async def get_timeline_events(
         self, topic: str, language: str = "en", start_year: int | None = None, end_year: int | None = None
@@ -40,7 +47,7 @@ class ContentPipeline:
             "srlimit": limit,
             "format": "json",
         }
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with self._get_client() as client:
             resp = await client.get(api_url, params=params)
             resp.raise_for_status()
             data = resp.json()
@@ -55,7 +62,7 @@ class ContentPipeline:
             "explaintext": True,
             "format": "json",
         }
-        async with httpx.AsyncClient(timeout=15) as client:
+        async with self._get_client() as client:
             resp = await client.get(api_url, params=params)
             resp.raise_for_status()
             pages = resp.json().get("query", {}).get("pages", {})
