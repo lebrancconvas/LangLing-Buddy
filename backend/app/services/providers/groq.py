@@ -9,7 +9,7 @@ from app.services.providers.base import BaseProvider
 logger = logging.getLogger(__name__)
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.1-70b-versatile"
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 
 class GroqProvider(BaseProvider):
@@ -52,7 +52,10 @@ class GroqProvider(BaseProvider):
 
             if resp.status_code == 429:
                 raise RuntimeError("Groq rate limit exceeded")
-            resp.raise_for_status()
+            if resp.status_code != 200:
+                body = resp.text[:500]
+                logger.error("Groq API error %d: %s", resp.status_code, body)
+                resp.raise_for_status()
 
             data = resp.json()
             try:

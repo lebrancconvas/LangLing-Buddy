@@ -1,33 +1,65 @@
 "use client";
 
 import { useState } from "react";
-import { BrainCircuit, CheckCircle2, XCircle, RotateCcw, Loader2, Layers } from "lucide-react";
+import {
+  BrainCircuit,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  Loader2,
+  Layers,
+  BookOpen,
+  ExternalLink,
+  TrendingUp,
+  AlertTriangle,
+  Lightbulb,
+  History,
+} from "lucide-react";
+import Link from "next/link";
 import { useQuizStore } from "@/lib/stores/quiz-store";
 import { useAppStore } from "@/lib/stores/app-store";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+interface QuizSummary {
+  score_summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  resources: Array<{ title: string; url: string; description: string }>;
+}
+
 export default function QuizPage() {
   const {
     questions, flashcards, currentIndex, score, isLoading, mode,
+    quizId, topic: storeTopic, language: storeLang, difficulty: storeDiff, answers,
     setQuestions, setFlashcards, nextQuestion, incrementScore,
-    setMode, setLoading, reviewCard, reset,
+    setMode, setLoading, setQuizMeta, addAnswer, reviewCard, reset,
   } = useQuizStore();
   const { currentLanguage } = useAppStore();
 
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
+  const [numQuestions, setNumQuestions] = useState(5);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  const [summary, setSummary] = useState<QuizSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const handleGenerateQuiz = async () => {
     if (!topic.trim()) return;
     setLoading(true);
     reset();
     try {
-      const result = await api.generateQuiz(topic, currentLanguage, difficulty);
+      const result = await api.generateQuiz(topic, currentLanguage, difficulty, numQuestions);
       setQuestions(result.questions);
+      setQuizMeta({
+        quizId: result.quiz_id,
+        topic: result.topic,
+        language: currentLanguage,
+        difficulty,
+      });
     } catch {
       // error handled by empty state
     } finally {
@@ -54,6 +86,7 @@ export default function QuizPage() {
     if (selectedAnswer !== null) return;
     setSelectedAnswer(index);
     setShowExplanation(true);
+    addAnswer({ question_index: currentIndex, selected_answer: index });
     if (index === questions[currentIndex].correct_answer) {
       incrementScore();
     }
@@ -65,21 +98,84 @@ export default function QuizPage() {
     nextQuestion();
   };
 
+  const handleQuizComplete = async () => {
+    setSummaryLoading(true);
+    let summaryResult: QuizSummary;
+    try {
+      summaryResult = await api.generateQuizSummary({
+        topic: storeTopic,
+        language: storeLang,
+        difficulty: storeDiff,
+        score,
+        total: questions.length,
+        questions,
+        answers,
+      });
+    } catch {
+      summaryResult = {
+        score_summary: `You scored ${score}/${questions.length} (${Math.round((score / questions.length) * 100)}%). Good effort!`,
+        strengths: ["Completed the quiz"],
+        weaknesses: ["Could not generate detailed analysis"],
+        recommendations: ["Try again with a different topic or difficulty"],
+        resources: [],
+      };
+    }
+    setSummary(summaryResult);
+
+    try {
+      await api.submitQuiz({
+        quiz_id: quizId,
+        topic: storeTopic,
+        language: storeLang,
+        difficulty: storeDiff,
+        questions,
+        answers,
+        score,
+        total: questions.length,
+        summary: summaryResult,
+      });
+    } catch {
+      // history save failed silently
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  const handleReset = () => {
+    reset();
+    setSummary(null);
+    setSelectedAnswer(null);
+    setShowExplanation(false);
+  };
+
   const currentQ = questions[currentIndex];
   const currentCard = flashcards[currentIndex];
   const quizComplete = mode === "quiz" && questions.length > 0 && currentIndex >= questions.length;
   const cardsComplete = mode === "flashcard" && flashcards.length > 0 && currentIndex >= flashcards.length;
 
+  if (quizComplete && !summary && !summaryLoading) {
+    handleQuizComplete();
+  }
+
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex items-center gap-3 border-b border-zinc-800 px-6 py-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 text-white">
-          <BrainCircuit size={20} />
+      <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 text-white">
+            <BrainCircuit size={20} />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-white">Quiz & Flashcards</h1>
+            <p className="text-xs text-zinc-400">Test your knowledge with AI-generated content</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-lg font-bold text-white">Quiz & Flashcards</h1>
-          <p className="text-xs text-zinc-400">Test your knowledge with AI-generated content</p>
-        </div>
+        <Link
+          href="/quiz/history"
+          className="flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+        >
+          <History size={14} />
+          Quiz History
+        </Link>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6">
@@ -93,6 +189,7 @@ export default function QuizPage() {
                   onChange={(e) => setTopic(e.target.value)}
                   placeholder="Enter a topic (e.g., Japanese N5 vocabulary, World War II)"
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-200 placeholder-zinc-500 outline-none focus:border-indigo-500"
+                  onKeyDown={(e) => e.key === "Enter" && handleGenerateQuiz()}
                 />
                 <div className="flex gap-2">
                   {["easy", "medium", "hard"].map((d) => (
@@ -109,6 +206,18 @@ export default function QuizPage() {
                       {d}
                     </button>
                   ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs font-medium text-zinc-400">Questions:</label>
+                  <input
+                    type="range"
+                    min={5}
+                    max={20}
+                    value={numQuestions}
+                    onChange={(e) => setNumQuestions(Number(e.target.value))}
+                    className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-zinc-700 accent-indigo-500"
+                  />
+                  <span className="w-6 text-center text-sm font-semibold text-indigo-400">{numQuestions}</span>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -149,35 +258,53 @@ export default function QuizPage() {
                 <h2 className="mb-6 text-lg font-semibold text-white">{currentQ.question}</h2>
                 <div className="space-y-3">
                   {currentQ.options.map((option, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSelectAnswer(i)}
-                      disabled={selectedAnswer !== null}
-                      className={cn(
-                        "w-full rounded-xl border px-4 py-3 text-left text-sm transition-all",
-                        selectedAnswer === null
-                          ? "border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:bg-zinc-800"
-                          : i === currentQ.correct_answer
-                            ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
-                            : selectedAnswer === i
-                              ? "border-red-500 bg-red-500/10 text-red-400"
-                              : "border-zinc-700 text-zinc-500"
+                    <div key={i}>
+                      <button
+                        onClick={() => handleSelectAnswer(i)}
+                        disabled={selectedAnswer !== null}
+                        className={cn(
+                          "w-full rounded-xl border px-4 py-3 text-left text-sm transition-all",
+                          selectedAnswer === null
+                            ? "border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:bg-zinc-800"
+                            : i === currentQ.correct_answer
+                              ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+                              : selectedAnswer === i
+                                ? "border-red-500 bg-red-500/10 text-red-400"
+                                : "border-zinc-700 text-zinc-500"
+                        )}
+                      >
+                        <span className="mr-2 font-medium">{String.fromCharCode(65 + i)}.</span>
+                        {option}
+                        {selectedAnswer !== null && i === currentQ.correct_answer && (
+                          <CheckCircle2 size={16} className="float-right mt-0.5 text-emerald-400" />
+                        )}
+                        {selectedAnswer === i && i !== currentQ.correct_answer && (
+                          <XCircle size={16} className="float-right mt-0.5 text-red-400" />
+                        )}
+                      </button>
+                      {showExplanation && currentQ.option_explanations?.[i] && (
+                        <div
+                          className={cn(
+                            "ml-4 mt-1 rounded-lg px-3 py-2 text-xs",
+                            i === currentQ.correct_answer
+                              ? "bg-emerald-500/5 text-emerald-300/80"
+                              : "bg-zinc-800/50 text-zinc-400"
+                          )}
+                        >
+                          {i === currentQ.correct_answer ? (
+                            <CheckCircle2 size={12} className="mr-1 inline text-emerald-400" />
+                          ) : (
+                            <XCircle size={12} className="mr-1 inline text-red-400/60" />
+                          )}
+                          {currentQ.option_explanations[i]}
+                        </div>
                       )}
-                    >
-                      <span className="mr-2 font-medium">{String.fromCharCode(65 + i)}.</span>
-                      {option}
-                      {selectedAnswer !== null && i === currentQ.correct_answer && (
-                        <CheckCircle2 size={16} className="float-right mt-0.5 text-emerald-400" />
-                      )}
-                      {selectedAnswer === i && i !== currentQ.correct_answer && (
-                        <XCircle size={16} className="float-right mt-0.5 text-red-400" />
-                      )}
-                    </button>
+                    </div>
                   ))}
                 </div>
                 {showExplanation && (
                   <div className="mt-4 rounded-xl bg-zinc-800 p-4 text-sm text-zinc-300">
-                    <span className="font-semibold text-indigo-400">Explanation:</span>{" "}
+                    <span className="font-semibold text-indigo-400">Summary:</span>{" "}
                     {currentQ.explanation}
                   </div>
                 )}
@@ -237,20 +364,127 @@ export default function QuizPage() {
             </div>
           )}
 
-          {(quizComplete || cardsComplete) && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <CheckCircle2 size={48} className="mb-4 text-emerald-400" />
-              <h2 className="mb-2 text-2xl font-bold text-white">
-                {mode === "quiz" ? "Quiz Complete!" : "Cards Complete!"}
-              </h2>
-              {mode === "quiz" && (
-                <p className="mb-6 text-lg text-zinc-400">
+          {quizComplete && (
+            <div className="space-y-6 py-8">
+              <div className="flex flex-col items-center text-center">
+                <CheckCircle2 size={48} className="mb-4 text-emerald-400" />
+                <h2 className="mb-2 text-2xl font-bold text-white">Quiz Complete!</h2>
+                <p className="mb-2 text-lg text-zinc-400">
                   Score: {score} / {questions.length} ({Math.round((score / questions.length) * 100)}%)
                 </p>
+              </div>
+
+              {summaryLoading && (
+                <div className="flex flex-col items-center py-8">
+                  <Loader2 className="mb-3 h-6 w-6 animate-spin text-indigo-400" />
+                  <p className="text-sm text-zinc-400">Generating learning summary...</p>
+                </div>
               )}
+
+              {summary && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-zinc-700 bg-zinc-900/50 p-5">
+                    <p className="text-sm leading-relaxed text-zinc-300">{summary.score_summary}</p>
+                  </div>
+
+                  {summary.strengths.length > 0 && (
+                    <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-emerald-400">
+                        <TrendingUp size={16} />
+                        Strengths
+                      </h3>
+                      <ul className="space-y-1.5">
+                        {summary.strengths.map((s, i) => (
+                          <li key={i} className="text-sm text-zinc-300">• {s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {summary.weaknesses.length > 0 && (
+                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-400">
+                        <AlertTriangle size={16} />
+                        Areas to Improve
+                      </h3>
+                      <ul className="space-y-1.5">
+                        {summary.weaknesses.map((w, i) => (
+                          <li key={i} className="text-sm text-zinc-300">• {w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {summary.recommendations.length > 0 && (
+                    <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-5">
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-indigo-400">
+                        <Lightbulb size={16} />
+                        What to Learn Next
+                      </h3>
+                      <ul className="space-y-1.5">
+                        {summary.recommendations.map((r, i) => (
+                          <li key={i} className="text-sm text-zinc-300">• {r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {summary.resources.length > 0 && (
+                    <div className="rounded-2xl border border-zinc-700 bg-zinc-900/50 p-5">
+                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-purple-400">
+                        <BookOpen size={16} />
+                        Recommended Resources
+                      </h3>
+                      <div className="space-y-3">
+                        {summary.resources.map((res, i) => (
+                          <a
+                            key={i}
+                            href={res.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block rounded-xl border border-zinc-700 p-3 transition-colors hover:border-indigo-500 hover:bg-zinc-800"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium text-indigo-400">{res.title}</p>
+                                <p className="mt-1 text-xs text-zinc-400">{res.description}</p>
+                              </div>
+                              <ExternalLink size={14} className="mt-0.5 shrink-0 text-zinc-500" />
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex justify-center gap-3 pt-2">
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+                >
+                  <RotateCcw size={16} />
+                  New Quiz
+                </button>
+                <Link
+                  href="/quiz/history"
+                  className="flex items-center gap-2 rounded-xl border border-zinc-700 px-6 py-3 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-800"
+                >
+                  <History size={16} />
+                  View History
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {cardsComplete && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <CheckCircle2 size={48} className="mb-4 text-emerald-400" />
+              <h2 className="mb-2 text-2xl font-bold text-white">Cards Complete!</h2>
               <button
-                onClick={reset}
-                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+                onClick={handleReset}
+                className="mt-6 flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
               >
                 <RotateCcw size={16} />
                 Try Again

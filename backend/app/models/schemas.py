@@ -34,11 +34,73 @@ class QuizQuestion(BaseModel):
     options: list[str]
     correct_answer: int
     explanation: str
+    option_explanations: list[str] = Field(default_factory=list)
 
 
 class QuizResponse(BaseModel):
     questions: list[QuizQuestion]
     topic: str
+    quiz_id: str = ""
+
+
+class QuizAnswerSubmission(BaseModel):
+    question_index: int
+    selected_answer: int
+
+
+class QuizSummaryData(BaseModel):
+    score_summary: str = ""
+    strengths: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+    resources: list[dict] = Field(default_factory=list)
+
+
+class QuizSubmitRequest(BaseModel):
+    quiz_id: str
+    topic: str
+    language: str = "en"
+    difficulty: str = "medium"
+    questions: list[QuizQuestion]
+    answers: list[QuizAnswerSubmission]
+    score: int
+    total: int
+    summary: QuizSummaryData | None = None
+
+
+class QuizAttempt(BaseModel):
+    id: str
+    topic: str
+    language: str = "en"
+    difficulty: str = "medium"
+    score: int
+    total: int
+    questions: list[QuizQuestion]
+    answers: list[QuizAnswerSubmission]
+    summary: QuizSummaryData | None = None
+    timestamp: str
+
+
+class QuizHistoryResponse(BaseModel):
+    attempts: list[QuizAttempt]
+
+
+class QuizSummaryRequest(BaseModel):
+    topic: str
+    language: str = "en"
+    difficulty: str = "medium"
+    score: int
+    total: int
+    questions: list[QuizQuestion]
+    answers: list[QuizAnswerSubmission]
+
+
+class QuizSummaryResponse(BaseModel):
+    score_summary: str
+    strengths: list[str]
+    weaknesses: list[str]
+    recommendations: list[str]
+    resources: list[dict] = Field(default_factory=list)
 
 
 # ── Flashcards ────────────────────────────────────────────────────────

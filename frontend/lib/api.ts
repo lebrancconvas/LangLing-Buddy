@@ -61,8 +61,10 @@ class APIClient {
         options: string[];
         correct_answer: number;
         explanation: string;
+        option_explanations: string[];
       }>;
       topic: string;
+      quiz_id: string;
     }>("/api/quiz/generate", {
       method: "POST",
       body: JSON.stringify({
@@ -71,6 +73,111 @@ class APIClient {
         difficulty,
         num_questions: numQuestions,
       }),
+    });
+  }
+
+  async submitQuiz(data: {
+    quiz_id: string;
+    topic: string;
+    language: string;
+    difficulty: string;
+    questions: Array<{
+      question: string;
+      options: string[];
+      correct_answer: number;
+      explanation: string;
+      option_explanations: string[];
+    }>;
+    answers: Array<{ question_index: number; selected_answer: number }>;
+    score: number;
+    total: number;
+    summary?: {
+      score_summary: string;
+      strengths: string[];
+      weaknesses: string[];
+      recommendations: string[];
+      resources: Array<{ title: string; url: string; description: string }>;
+    };
+  }) {
+    return this.request<{ id: string; message: string }>("/api/quiz/submit", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getQuizHistory() {
+    return this.request<{
+      attempts: Array<{
+        id: string;
+        topic: string;
+        language: string;
+        difficulty: string;
+        score: number;
+        total: number;
+        questions: Array<{
+          question: string;
+          options: string[];
+          correct_answer: number;
+          explanation: string;
+          option_explanations: string[];
+        }>;
+        answers: Array<{ question_index: number; selected_answer: number }>;
+        summary?: {
+          score_summary: string;
+          strengths: string[];
+          weaknesses: string[];
+          recommendations: string[];
+          resources: Array<{ title: string; url: string; description: string }>;
+        } | null;
+        timestamp: string;
+      }>;
+    }>("/api/quiz/history");
+  }
+
+  async getQuizAttempt(attemptId: string) {
+    return this.request<{
+      id: string;
+      topic: string;
+      language: string;
+      difficulty: string;
+      score: number;
+      total: number;
+      questions: Array<{
+        question: string;
+        options: string[];
+        correct_answer: number;
+        explanation: string;
+        option_explanations: string[];
+      }>;
+      answers: Array<{ question_index: number; selected_answer: number }>;
+      timestamp: string;
+    }>(`/api/quiz/history/${attemptId}`);
+  }
+
+  async generateQuizSummary(data: {
+    topic: string;
+    language: string;
+    difficulty: string;
+    score: number;
+    total: number;
+    questions: Array<{
+      question: string;
+      options: string[];
+      correct_answer: number;
+      explanation: string;
+      option_explanations: string[];
+    }>;
+    answers: Array<{ question_index: number; selected_answer: number }>;
+  }) {
+    return this.request<{
+      score_summary: string;
+      strengths: string[];
+      weaknesses: string[];
+      recommendations: string[];
+      resources: Array<{ title: string; url: string; description: string }>;
+    }>("/api/quiz/summary", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   }
 

@@ -1,10 +1,16 @@
 import { create } from "zustand";
 
-interface QuizQuestion {
+export interface QuizQuestion {
   question: string;
   options: string[];
   correct_answer: number;
   explanation: string;
+  option_explanations: string[];
+}
+
+export interface QuizAnswer {
+  question_index: number;
+  selected_answer: number;
 }
 
 interface Flashcard {
@@ -25,12 +31,19 @@ interface QuizState {
   score: number;
   isLoading: boolean;
   mode: "quiz" | "flashcard";
+  quizId: string;
+  topic: string;
+  language: string;
+  difficulty: string;
+  answers: QuizAnswer[];
   setQuestions: (questions: QuizQuestion[]) => void;
   setFlashcards: (cards: Omit<Flashcard, "id" | "easeFactor" | "interval" | "repetitions" | "nextReview">[]) => void;
   nextQuestion: () => void;
   incrementScore: () => void;
   setMode: (mode: "quiz" | "flashcard") => void;
   setLoading: (loading: boolean) => void;
+  setQuizMeta: (meta: { quizId: string; topic: string; language: string; difficulty: string }) => void;
+  addAnswer: (answer: QuizAnswer) => void;
   reviewCard: (cardId: string, quality: number) => void;
   reset: () => void;
 }
@@ -65,7 +78,12 @@ export const useQuizStore = create<QuizState>((set) => ({
   score: 0,
   isLoading: false,
   mode: "quiz",
-  setQuestions: (questions) => set({ questions, currentIndex: 0, score: 0 }),
+  quizId: "",
+  topic: "",
+  language: "en",
+  difficulty: "medium",
+  answers: [],
+  setQuestions: (questions) => set({ questions, currentIndex: 0, score: 0, answers: [] }),
   setFlashcards: (cards) =>
     set({
       flashcards: cards.map((c) => ({
@@ -82,11 +100,21 @@ export const useQuizStore = create<QuizState>((set) => ({
   incrementScore: () => set((s) => ({ score: s.score + 1 })),
   setMode: (mode) => set({ mode }),
   setLoading: (loading) => set({ isLoading: loading }),
+  setQuizMeta: (meta) => set(meta),
+  addAnswer: (answer) => set((s) => ({ answers: [...s.answers, answer] })),
   reviewCard: (cardId, quality) =>
     set((s) => ({
       flashcards: s.flashcards.map((c) =>
         c.id === cardId ? { ...c, ...sm2(c, quality) } : c
       ),
     })),
-  reset: () => set({ questions: [], flashcards: [], currentIndex: 0, score: 0 }),
+  reset: () => set({
+    questions: [],
+    flashcards: [],
+    currentIndex: 0,
+    score: 0,
+    answers: [],
+    quizId: "",
+    topic: "",
+  }),
 }));
