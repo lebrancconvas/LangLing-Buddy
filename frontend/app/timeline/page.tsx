@@ -10,6 +10,9 @@ interface TimelineEvent {
   year: number;
   title: string;
   description: string;
+  detail: string;
+  impact: string;
+  key_figures: string[];
   category: string;
   related_events: string[];
 }
@@ -161,12 +164,35 @@ export default function TimelinePage() {
                           </span>
                         </div>
                         <h3 className="text-sm font-semibold text-white">{event.title}</h3>
+                        <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">{event.description}</p>
                         {selectedEvent === event && (
-                          <div className="mt-3 space-y-2">
-                            <p className="text-xs leading-relaxed text-zinc-300">{event.description}</p>
-                            {event.related_events.length > 0 && (
-                              <div className="text-xs text-zinc-500">
-                                Related: {event.related_events.join(", ")}
+                          <div className="mt-3 space-y-3 border-t border-zinc-700/50 pt-3">
+                            {event.detail && (
+                              <div>
+                                <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Context & Details</h4>
+                                <p className="text-xs leading-relaxed text-zinc-300">{event.detail}</p>
+                              </div>
+                            )}
+                            {event.impact && (
+                              <div>
+                                <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Impact & Legacy</h4>
+                                <p className="text-xs leading-relaxed text-zinc-300">{event.impact}</p>
+                              </div>
+                            )}
+                            {event.key_figures?.length > 0 && (
+                              <div>
+                                <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Key Figures</h4>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {event.key_figures.map((fig, fi) => (
+                                    <span key={fi} className="rounded-md bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-300">{fig}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {event.related_events?.length > 0 && (
+                              <div>
+                                <h4 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Related Events</h4>
+                                <p className="text-xs text-zinc-400">{event.related_events.join(" • ")}</p>
                               </div>
                             )}
                           </div>

@@ -32,9 +32,9 @@ class StoryEngine:
         )
 
         response = await ai_router.generate(
-            prompt=f"Begin an interactive historical story about: {topic}",
+            prompt=f"Begin a creative and unique interactive historical story about: {topic}. Take an unexpected angle or perspective.",
             system_prompt=prompt,
-            temperature=0.9,
+            temperature=0.95,
         )
 
         segment = self._parse_segment(response)
@@ -65,7 +65,7 @@ class StoryEngine:
 
         response = await ai_router.generate(
             prompt=prompt,
-            temperature=0.9,
+            temperature=0.95,
         )
 
         segment = self._parse_segment(response)

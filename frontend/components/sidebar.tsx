@@ -13,8 +13,10 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
+  HelpCircle,
 } from "lucide-react";
 import { useAppStore } from "@/lib/stores/app-store";
+import { LanguagePicker } from "@/components/language-picker";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -76,7 +78,20 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border p-3 space-y-1">
+        <LanguagePicker collapsed={!sidebarOpen} />
+        <Link
+          href="/guide"
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+            pathname === "/guide"
+              ? "bg-indigo-600/20 text-indigo-400"
+              : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+          )}
+        >
+          <HelpCircle size={20} className="shrink-0" />
+          {sidebarOpen && <span>User Guide</span>}
+        </Link>
         <Link
           href="/settings"
           className={cn(

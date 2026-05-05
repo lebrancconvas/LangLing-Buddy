@@ -35,9 +35,9 @@ class QuizGenerator:
         )
 
         response = await ai_router.generate(
-            prompt=f"Generate {num_questions} quiz questions about: {topic}",
+            prompt=f"Generate {num_questions} unique and diverse quiz questions about: {topic}. Surprise me with varied angles.",
             system_prompt=prompt,
-            temperature=0.8,
+            temperature=0.95,
         )
 
         return self._parse_quiz_response(response, num_questions)
@@ -55,9 +55,9 @@ class QuizGenerator:
         )
 
         response = await ai_router.generate(
-            prompt=f"Generate {num_cards} flashcards about: {topic}",
+            prompt=f"Generate {num_cards} diverse and unique flashcards about: {topic}. Cover different aspects and difficulty levels.",
             system_prompt=prompt,
-            temperature=0.7,
+            temperature=0.85,
         )
 
         return self._parse_flashcard_response(response, num_cards)

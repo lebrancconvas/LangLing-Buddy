@@ -11,21 +11,33 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-TIMELINE_PROMPT = """Generate a timeline of key historical events related to "{topic}".
+TIMELINE_PROMPT = """Generate a detailed timeline of key historical events related to "{topic}".
 {year_range}
+
+For EACH event, provide rich and informative content — not just a headline. Include:
+- A clear title
+- A description (2-3 sentences summarizing what happened)
+- Detailed context (3-5 sentences explaining the background, causes, and how it unfolded)
+- The lasting impact or significance (2-3 sentences on long-term effects)
+- Key figures involved (people, organizations, or nations)
+- Related events that connect to it
 
 Output format (JSON array):
 [
   {{
     "year": 1776,
     "title": "Event title",
-    "description": "Brief description of the event and its significance",
+    "description": "2-3 sentence summary of what happened",
+    "detail": "3-5 sentences providing deeper context, background, causes, and how the event unfolded in detail",
+    "impact": "2-3 sentences on the lasting significance, consequences, and legacy of this event",
+    "key_figures": ["Person or group 1", "Person or group 2"],
     "category": "political|military|cultural|scientific|economic",
     "related_events": ["Related event 1", "Related event 2"]
   }}
 ]
 
-Generate 8-15 events, sorted chronologically. Be historically accurate."""
+Generate 8-15 events, sorted chronologically. Be historically accurate.
+Include a MIX of well-known and lesser-known events. Go beyond the obvious — include cultural, scientific, and social milestones, not just political/military ones."""
 
 
 @router.post("/generate", response_model=TimelineResponse)
@@ -43,7 +55,7 @@ async def generate_timeline(request: TimelineRequest):
 
         response = await ai_router.generate(
             prompt=prompt,
-            temperature=0.5,
+            temperature=0.7,
         )
 
         events = _parse_events(response)

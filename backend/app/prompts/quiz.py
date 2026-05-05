@@ -13,6 +13,7 @@ Requirements:
 5. Questions should test real knowledge, not be trivially obvious
 6. For language quizzes: test vocabulary, grammar, usage, and cultural knowledge
 7. For history quizzes: test events, dates, figures, causes, and effects
+8. VARIETY IS CRITICAL: each question must cover a different sub-topic, angle, or aspect. Never repeat similar questions. Mix question types (definitions, context usage, cause/effect, dates, comparisons, analysis). Draw from obscure and surprising facts, not just the most common ones.
 
 Output format (JSON array):
 [
@@ -60,6 +61,10 @@ Output valid JSON only:
 FLASHCARD_SYSTEM_PROMPT = """Generate flashcards for studying {topic} in {language}.
 Each card has a front (question/term) and back (answer/definition) side,
 plus an example sentence showing usage.
+
+IMPORTANT: Generate diverse, unique cards. Each card should cover a DIFFERENT concept, word, or fact.
+Avoid repetition - mix common and uncommon terms, explore different aspects of the topic.
+Include surprising or lesser-known information to keep the learner engaged.
 
 Output format (JSON array):
 [

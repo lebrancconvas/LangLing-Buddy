@@ -46,6 +46,7 @@ async def send_message(request: ChatRequest):
         response = await ai_router.generate(
             prompt=user_msg,
             system_prompt=system,
+            temperature=0.8,
         )
 
         return ChatResponse(response=response, sources=sources)

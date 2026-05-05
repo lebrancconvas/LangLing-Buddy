@@ -256,6 +256,9 @@ class APIClient {
         year: number;
         title: string;
         description: string;
+        detail: string;
+        impact: string;
+        key_figures: string[];
         category: string;
         related_events: string[];
       }>;

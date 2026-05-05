@@ -179,6 +179,9 @@ class TimelineEvent(BaseModel):
     year: int
     title: str
     description: str
+    detail: str = ""
+    impact: str = ""
+    key_figures: list[str] = Field(default_factory=list)
     category: str = ""
     related_events: list[str] = Field(default_factory=list)
 

@@ -13,6 +13,7 @@ Guidelines:
 5. Include historically accurate characters and locations
 6. Weave language learning naturally into the narrative
 7. For non-English stories, include key vocabulary with context
+8. Be highly creative: explore unusual perspectives (commoner vs ruler, traveler vs local), surprising settings, and lesser-known historical moments. Never start with the most obvious entry point for a topic.
 
 Output format (JSON):
 {{
