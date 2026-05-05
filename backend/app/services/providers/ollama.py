@@ -4,11 +4,10 @@ from typing import Any
 
 import httpx
 
+from app.config import settings
 from app.services.providers.base import BaseProvider
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_MODEL = "llama3.1:8b"
 
 
 class OllamaProvider(BaseProvider):
@@ -16,12 +15,13 @@ class OllamaProvider(BaseProvider):
 
     def __init__(self, base_url: str = "http://localhost:11434") -> None:
         self.base_url = base_url.rstrip("/")
+        self.default_model = settings.OLLAMA_MODEL
         self._available_models: list[str] = []
 
     async def generate(
         self, prompt: str, system_prompt: str = "", **kwargs: Any
     ) -> str:
-        model = kwargs.get("model", DEFAULT_MODEL)
+        model = kwargs.get("model", self.default_model)
         temperature = kwargs.get("temperature", 0.7)
 
         payload: dict[str, Any] = {

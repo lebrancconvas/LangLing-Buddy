@@ -4,12 +4,27 @@ from typing import Any
 
 import httpx
 
+from app.config import settings
 from app.services.providers.base import BaseProvider
 
 logger = logging.getLogger(__name__)
 
 HF_INFERENCE_URL = "https://api-inference.huggingface.co/models"
-DEFAULT_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
+
+
+def _format_hf_chat_prompt(model_id: str, system_prompt: str, user_prompt: str) -> str:
+    """Format prompt for the Inference API; templates differ by model family."""
+    mid = model_id.lower()
+    if "gemma" in mid:
+        if system_prompt:
+            return (
+                f"<start_of_turn>user\n{system_prompt}\n\n{user_prompt}<end_of_turn>\n"
+                "<start_of_turn>model\n"
+            )
+        return f"<start_of_turn>user\n{user_prompt}<end_of_turn>\n<start_of_turn>model\n"
+    if system_prompt:
+        return f"[INST] {system_prompt}\n\n{user_prompt} [/INST]"
+    return user_prompt
 
 
 class HuggingFaceProvider(BaseProvider):
@@ -17,7 +32,7 @@ class HuggingFaceProvider(BaseProvider):
 
     def __init__(self, api_token: str) -> None:
         self.api_token = api_token
-        self._request_count = 0
+        self.default_model = settings.HF_CHAT_MODEL
 
     async def generate(
         self, prompt: str, system_prompt: str = "", **kwargs: Any
@@ -25,13 +40,11 @@ class HuggingFaceProvider(BaseProvider):
         if not self.api_token:
             raise RuntimeError("HuggingFace API token not configured")
 
-        model = kwargs.get("model", DEFAULT_MODEL)
+        model = kwargs.get("model", self.default_model)
         temperature = kwargs.get("temperature", 0.7)
         max_tokens = kwargs.get("max_tokens", 1024)
 
-        full_prompt = prompt
-        if system_prompt:
-            full_prompt = f"[INST] {system_prompt}\n\n{prompt} [/INST]"
+        full_prompt = _format_hf_chat_prompt(model, system_prompt, prompt)
 
         payload = {
             "inputs": full_prompt,
@@ -47,7 +60,6 @@ class HuggingFaceProvider(BaseProvider):
 
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(url, json=payload, headers=headers)
-            self._request_count += 1
 
             if resp.status_code == 429:
                 raise RuntimeError("HuggingFace rate limit exceeded")
@@ -68,7 +80,7 @@ class HuggingFaceProvider(BaseProvider):
         return bool(self.api_token)
 
     async def get_quota_status(self) -> float:
-        return max(0.0, 1.0 - (self._request_count / 100.0))
+        return 1.0 if self.api_token else 0.0
 
     async def translate(self, text: str, model: str = "Helsinki-NLP/opus-mt-en-th") -> str:
         """Use a dedicated Helsinki-NLP translation model."""

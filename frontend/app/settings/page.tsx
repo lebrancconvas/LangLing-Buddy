@@ -80,7 +80,7 @@ export default function SettingsPage() {
         >
           <option value="auto">Auto (Smart Fallback)</option>
           <option value="gemini">Google Gemini</option>
-          <option value="groq">Groq (Llama 3)</option>
+          <option value="groq">Groq</option>
           <option value="huggingface">HuggingFace</option>
           <option value="ollama">Ollama (Local)</option>
         </select>

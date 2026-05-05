@@ -13,7 +13,7 @@ class StoryEngine:
     """Interactive branching narrative story engine."""
 
     def __init__(self) -> None:
-        self._sessions: dict[str, list[dict]] = {}
+        self._sessions: dict[str, dict] = {}
 
     async def start_story(
         self,
@@ -32,22 +32,27 @@ class StoryEngine:
         )
 
         response = await ai_router.generate(
-            prompt=f"Begin a creative and unique interactive historical story about: {topic}. Take an unexpected angle or perspective.",
+            prompt=f"Begin a creative and unique interactive story about: {topic}. Take an unexpected angle or perspective.",
             system_prompt=prompt,
             temperature=0.95,
         )
 
         segment = self._parse_segment(response)
-        self._sessions[story_id] = [{"text": segment.text, "choices": segment.choices}]
+        self._sessions[story_id] = {
+            "history": [{"text": segment.text, "choices": segment.choices}],
+            "style": style,
+            "language": language,
+        }
         return segment, story_id
 
     async def continue_story(
         self, story_id: str, choice_index: int
     ) -> StorySegment:
-        history = self._sessions.get(story_id, [])
-        if not history:
+        session = self._sessions.get(story_id)
+        if not session:
             raise ValueError(f"Story session {story_id} not found")
 
+        history = session["history"]
         last = history[-1]
         choices = last.get("choices", [])
         if choice_index >= len(choices):
@@ -61,6 +66,8 @@ class StoryEngine:
         prompt = STORY_CONTINUE_PROMPT.format(
             context=context,
             choice=choice_text,
+            style=session["style"],
+            language=session["language"],
         )
 
         response = await ai_router.generate(
@@ -70,7 +77,6 @@ class StoryEngine:
 
         segment = self._parse_segment(response)
         history.append({"text": segment.text, "choices": segment.choices})
-        self._sessions[story_id] = history
         return segment
 
     def _parse_segment(self, response: str) -> StorySegment:
