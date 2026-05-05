@@ -2,6 +2,10 @@
 
 An AI-powered learning companion that helps you master languages and explore history through interactive conversations, quizzes, stories, and more.
 
+## Author
+
+Poom Yimyuean ([@lebrancconvas](https://github.com/lebrancconvas))
+
 ## Features
 
 - **Chat Tutor** - AI-powered conversational tutor for language and history learning with RAG
