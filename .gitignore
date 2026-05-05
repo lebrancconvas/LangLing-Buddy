@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.pyo
+venv/
+.venv/
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/.vercel
+
+# PWA
+frontend/public/sw.js
+frontend/public/workbox-*.js
+frontend/public/sw.js.map
+frontend/public/workbox-*.js.map
+
+# Environment
+.env
+.env.local
+.env.*.local
+frontend/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ChromaDB
+backend/data/chroma/
+
+# Misc
+*.log
+npm-debug.log*
