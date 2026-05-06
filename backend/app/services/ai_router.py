@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any
 
@@ -82,9 +83,34 @@ class AIRouter:
         gen = getattr(gemini, "generate_with_image", None)
         if gen is None:
             raise RuntimeError("Gemini provider does not support vision")
-        return await gen(
-            prompt, image_bytes, mime_type, system_prompt=system_prompt, **kwargs
-        )
+
+        last_err: Exception | None = None
+        for attempt in range(2):
+            try:
+                return await gen(
+                    prompt,
+                    image_bytes,
+                    mime_type,
+                    system_prompt=system_prompt,
+                    **kwargs,
+                )
+            except RuntimeError as exc:
+                last_err = exc
+                msg = str(exc).lower()
+                is_rate = (
+                    "rate limit" in msg
+                    or "429" in msg
+                    or "resource exhausted" in msg
+                    or "quota" in msg
+                )
+                if attempt == 0 and is_rate:
+                    logger.info(
+                        "Gemini vision rate limited on all models; waiting 2s then retrying once."
+                    )
+                    await asyncio.sleep(2.0)
+                    continue
+                raise
+        raise last_err or RuntimeError("Vision request failed")
 
     async def get_available_providers(self) -> list[AIProvider]:
         results: list[AIProvider] = []

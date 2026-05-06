@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     # Gemini 2.5 Flash-Lite is Google's most cost-efficient option for high-volume text.
     # (Gemini 2.0 models are deprecated; prefer 2.5 per Google deprecation notices.)
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"
+    # Comma-separated model ids, tried when a model returns 429 or is invalid (may have separate quotas).
+    GEMINI_MODEL_FALLBACKS: str = ""
     GROQ_MODEL: str = "llama-3.1-8b-instant"
     HF_CHAT_MODEL: str = "google/gemma-2-2b-it"
     OLLAMA_MODEL: str = "llama3.1:8b"

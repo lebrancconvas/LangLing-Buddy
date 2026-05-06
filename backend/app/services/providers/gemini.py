@@ -12,8 +12,30 @@ logger = logging.getLogger(__name__)
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
-# Tried in order if the configured model returns 404 (retired name / regional rollout).
-_GEMINI_MODEL_FALLBACKS = ("gemini-2.5-flash-lite", "gemini-2.5-flash")
+# Built-in fallbacks after the primary model (often separate quota / RPM pools on free tier).
+_BUILTIN_GEMINI_FALLBACKS: tuple[str, ...] = (
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-1.5-flash",
+)
+
+
+def _model_candidates(primary: str) -> list[str]:
+    """Primary first, then built-ins and GEMINI_MODEL_FALLBACKS from settings (deduped)."""
+    out: list[str] = []
+    p = primary.strip()
+    if p:
+        out.append(p)
+    for m in _BUILTIN_GEMINI_FALLBACKS:
+        if m not in out:
+            out.append(m)
+    extra = (settings.GEMINI_MODEL_FALLBACKS or "").strip()
+    if extra:
+        for part in extra.split(","):
+            m = part.strip()
+            if m and m not in out:
+                out.append(m)
+    return out
 
 
 class GeminiProvider(BaseProvider):
@@ -30,10 +52,7 @@ class GeminiProvider(BaseProvider):
             raise RuntimeError("Gemini API key not configured")
 
         primary = kwargs.get("model", self.default_model)
-        models: list[str] = []
-        for m in (primary, *_GEMINI_MODEL_FALLBACKS):
-            if m not in models:
-                models.append(m)
+        models = _model_candidates(primary)
 
         temperature = kwargs.get("temperature", 0.7)
         max_tokens = kwargs.get("max_tokens", 2048)
@@ -59,7 +78,13 @@ class GeminiProvider(BaseProvider):
                 resp = await client.post(url, json=payload)
 
                 if resp.status_code == 429:
-                    raise RuntimeError("Gemini rate limit exceeded")
+                    last_detail = resp.text[:400]
+                    logger.warning(
+                        "Gemini model %s rate limited (429), trying next model. %s",
+                        model,
+                        last_detail[:200],
+                    )
+                    continue
                 if resp.status_code == 404:
                     last_detail = resp.text[:400]
                     logger.warning(
@@ -90,7 +115,8 @@ class GeminiProvider(BaseProvider):
                     raise RuntimeError("Failed to parse Gemini response") from exc
 
         raise RuntimeError(
-            "No working Gemini model available. Last error: " + (last_detail or "unknown")
+            "All Gemini models failed (rate limits, invalid ids, or errors). "
+            "Last detail: " + (last_detail or "unknown")
         )
 
     async def generate_with_image(
@@ -106,11 +132,7 @@ class GeminiProvider(BaseProvider):
             raise RuntimeError("Gemini API key not configured")
 
         primary = kwargs.get("model", self.default_model)
-        models: list[str] = []
-        for m in (primary, *_GEMINI_MODEL_FALLBACKS):
-            if m not in models:
-                models.append(m)
-
+        models = _model_candidates(primary)
         temperature = kwargs.get("temperature", 0.2)
         max_tokens = kwargs.get("max_tokens", 8192)
 
@@ -135,7 +157,13 @@ class GeminiProvider(BaseProvider):
                 resp = await client.post(url, json=payload)
 
                 if resp.status_code == 429:
-                    raise RuntimeError("Gemini rate limit exceeded")
+                    last_detail = resp.text[:400]
+                    logger.warning(
+                        "Gemini model %s rate limited (429), trying next model. %s",
+                        model,
+                        last_detail[:200],
+                    )
+                    continue
                 if resp.status_code == 404:
                     last_detail = resp.text[:400]
                     logger.warning(
@@ -167,7 +195,8 @@ class GeminiProvider(BaseProvider):
                     raise RuntimeError("Failed to parse Gemini vision response") from exc
 
         raise RuntimeError(
-            "No working Gemini model for vision. Last error: " + (last_detail or "unknown")
+            "All Gemini vision models failed (rate limits, invalid ids, or errors). "
+            "Last detail: " + (last_detail or "unknown")
         )
 
     async def is_available(self) -> bool:
