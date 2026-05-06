@@ -16,23 +16,45 @@ Return ONLY a single JSON object with this shape (no markdown outside JSON):
 
 If there is no text, use empty strings and empty arrays where appropriate and explain in confidence_note."""
 
-CHINESE_HW_SYSTEM = """You recognize hand-drawn or brush-style Chinese characters (Hanzi) for learning.
-Hanzi can be messy; give best match and alternatives. Output valid JSON only."""
+CHINESE_HW_SYSTEM = """You recognize hand-drawn Chinese characters (Hanzi) for a learning app.
+Rank plausible characters by visual match. Output valid JSON only (no markdown).
+For romanizations: use standard references where possible; if unsure, use empty string — never invent."""
 
-CHINESE_HW_USER = """The user drew Chinese character(s) or a short phrase on a canvas (black on white).
+CHINESE_HW_USER = """The user drew ONE Chinese character on a white canvas (dark strokes).
 
-Return ONLY one JSON object:
+Return ONLY one JSON object with this exact structure:
+
 {{
-  "primary_character": "single main Hanzi to copy (best match)",
-  "alternatives": ["other likely characters, up to 5"],
-  "simplified": "simplified form if applicable, else same as primary",
-  "traditional": "traditional form if different, else same",
-  "pinyin": "pinyin with tone marks",
-  "meaning": "concise English meaning (or target language in notes)",
-  "stroke_count": <integer or null>,
-  "stroke_order_description": "brief 笔顺 description or empty",
-  "example_words": ["2-4 example words/phrases using this character"],
-  "usage_notes": "register, commonness, confusable characters"
+  "drawing_note": "short global note e.g. clarity, or empty string",
+  "candidates": [
+    {{
+      "rank": 1,
+      "character": "single Unicode Hanzi — best match",
+      "confidence_note": "why this rank fits the strokes",
+      "simplified": "simplified form or same as character",
+      "traditional": "traditional form if different, else same",
+      "readings": {{
+        "pinyin": "Hanyu Pinyin with tone marks",
+        "zhuyin_bopomofo": "Zhuyin / Bopomofo ㄅㄆㄇㄈ form e.g. ㄒㄩㄝˊ",
+        "wade_giles": "Wade–Giles if applicable",
+        "cantonese_jyutping": "Jyutping (粤拼)",
+        "cantonese_yale": "Yale Cantonese romanization",
+        "hokkien_poj": "Pe̍h-ōe-jī (POJ) for Taiwanese / Hokkien reading",
+        "teochew_pengim": "Peng'im / Teochew romanization e.g. Dio̍k-ìu-pêng-im",
+        "hakka_pin_yim": "Hakka Pin-yim or common Hakka romanization",
+        "hainanese": "Hainanese / 海南话 reading if known, else empty",
+        "shanghainese_wugniu": "Shanghai / Wu e.g. Wugniu or similar, else empty"
+      }},
+      "meaning": "concise English gloss",
+      "stroke_count": <integer or null>,
+      "stroke_order_description": "brief 笔顺 or empty",
+      "example_words": ["2-4 words/phrases containing this character"],
+      "usage_notes": "confusables, register, or empty"
+    }}
+  ]
 }}
 
-If drawing is ambiguous or not Chinese, set primary_character to "" and explain in usage_notes."""
+Rules:
+- Provide exactly **11** objects in `"candidates"`, **rank** 1 (best) through 11 (least likely). Same character must not repeat; use visually similar distinct characters if unsure.
+- Less certain readings must be "" rather than guessed.
+- If the drawing is not Chinese, use empty `"character"` strings and explain in `drawing_note`."""

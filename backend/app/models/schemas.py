@@ -28,17 +28,38 @@ class VisionOcrResponse(BaseModel):
     raw_model_text: str = ""
 
 
-class ChineseHandwritingResponse(BaseModel):
-    primary_character: str = ""
-    alternatives: list[str] = Field(default_factory=list)
+class ChineseCharacterReadings(BaseModel):
+    """Romanization / phonetic labels for one Hanzi (best-effort; may be empty if unknown)."""
+
+    pinyin: str = ""
+    zhuyin_bopomofo: str = ""
+    wade_giles: str = ""
+    cantonese_jyutping: str = ""
+    cantonese_yale: str = ""
+    hokkien_poj: str = ""
+    teochew_pengim: str = ""
+    hakka_pin_yim: str = ""
+    hainanese: str = ""
+    shanghainese_wugniu: str = ""
+
+
+class ChineseHandwritingCandidate(BaseModel):
+    rank: int = 1
+    character: str = ""
+    confidence_note: str = ""
     simplified: str = ""
     traditional: str = ""
-    pinyin: str = ""
+    readings: ChineseCharacterReadings = Field(default_factory=ChineseCharacterReadings)
     meaning: str = ""
     stroke_count: int | None = None
     stroke_order_description: str = ""
     example_words: list[str] = Field(default_factory=list)
     usage_notes: str = ""
+
+
+class ChineseHandwritingResponse(BaseModel):
+    candidates: list[ChineseHandwritingCandidate] = Field(default_factory=list)
+    drawing_note: str = ""
     raw_model_text: str = ""
 
 

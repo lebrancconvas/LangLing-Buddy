@@ -1,5 +1,38 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export interface ChineseCharacterReadings {
+  pinyin: string;
+  zhuyin_bopomofo: string;
+  wade_giles: string;
+  cantonese_jyutping: string;
+  cantonese_yale: string;
+  hokkien_poj: string;
+  teochew_pengim: string;
+  hakka_pin_yim: string;
+  hainanese: string;
+  shanghainese_wugniu: string;
+}
+
+export interface ChineseHandwritingCandidate {
+  rank: number;
+  character: string;
+  confidence_note: string;
+  simplified: string;
+  traditional: string;
+  readings: ChineseCharacterReadings;
+  meaning: string;
+  stroke_count: number | null;
+  stroke_order_description: string;
+  example_words: string[];
+  usage_notes: string;
+}
+
+export interface ChineseHandwritingResult {
+  candidates: ChineseHandwritingCandidate[];
+  drawing_note: string;
+  raw_model_text: string;
+}
+
 interface ChatMessage {
   role: string;
   content: string;
@@ -68,19 +101,10 @@ class APIClient {
   async visionChineseHandwriting(file: Blob) {
     const form = new FormData();
     form.append("file", file, "stroke.png");
-    return this.postForm<{
-      primary_character: string;
-      alternatives: string[];
-      simplified: string;
-      traditional: string;
-      pinyin: string;
-      meaning: string;
-      stroke_count: number | null;
-      stroke_order_description: string;
-      example_words: string[];
-      usage_notes: string;
-      raw_model_text: string;
-    }>("/api/vision/chinese-handwriting", form);
+    return this.postForm<ChineseHandwritingResult>(
+      "/api/vision/chinese-handwriting",
+      form
+    );
   }
 
   // ── Chat ──────────────────────────────────────────────────────────────
