@@ -6,8 +6,11 @@ import {
   MessageSquare,
   BrainCircuit,
   BookOpen,
+  BookMarked,
   Mic,
   Languages,
+  ScanText,
+  Brush,
   Clock,
   Settings,
   Home,
@@ -27,6 +30,9 @@ const navItems = [
   { href: "/story", label: "Stories", icon: BookOpen },
   { href: "/voice", label: "Voice", icon: Mic },
   { href: "/translate", label: "Translate", icon: Languages },
+  { href: "/etymology", label: "Etymology", icon: BookMarked },
+  { href: "/ocr", label: "Image to text", icon: ScanText },
+  { href: "/hanzi", label: "Chinese strokes", icon: Brush },
   { href: "/timeline", label: "Timeline", icon: Clock },
 ];
 

@@ -65,6 +65,27 @@ class AIRouter:
             f"All AI providers failed. Last error: {last_error}"
         )
 
+    async def generate_with_image(
+        self,
+        prompt: str,
+        image_bytes: bytes,
+        mime_type: str,
+        system_prompt: str = "",
+        **kwargs: Any,
+    ) -> str:
+        """Vision / multimodal — Gemini only (requires GEMINI_API_KEY)."""
+        gemini = self.providers.get("gemini")
+        if not gemini or not await gemini.is_available():
+            raise RuntimeError(
+                "Image features require a configured Google Gemini API key (GEMINI_API_KEY)."
+            )
+        gen = getattr(gemini, "generate_with_image", None)
+        if gen is None:
+            raise RuntimeError("Gemini provider does not support vision")
+        return await gen(
+            prompt, image_bytes, mime_type, system_prompt=system_prompt, **kwargs
+        )
+
     async def get_available_providers(self) -> list[AIProvider]:
         results: list[AIProvider] = []
         for name, provider in self.providers.items():

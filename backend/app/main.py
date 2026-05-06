@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import chat, quiz, story, translate, timeline
+from app.routers import chat, etymology, quiz, story, translate, timeline, vision
 
 app = FastAPI(
     title="LangLing API",
@@ -18,6 +18,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(etymology.router, prefix="/api/etymology", tags=["Etymology"])
+app.include_router(vision.router, prefix="/api/vision", tags=["Vision"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["Quiz"])
 app.include_router(story.router, prefix="/api/story", tags=["Story"])

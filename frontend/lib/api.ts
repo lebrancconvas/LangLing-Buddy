@@ -25,8 +25,62 @@ class APIClient {
     return res.json();
   }
 
+  private async postForm<T>(path: string, form: FormData): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+    const res = await fetch(url, { method: "POST", body: form });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => res.statusText);
+      throw new Error(`API error ${res.status}: ${detail}`);
+    }
+    return res.json();
+  }
+
   async healthCheck() {
     return this.request<{ status: string }>("/health");
+  }
+
+  // ── Etymology ─────────────────────────────────────────────────────────
+
+  async lookupEtymology(word: string, language = "", uiLanguage = "en") {
+    return this.request<{ content: string }>("/api/etymology/lookup", {
+      method: "POST",
+      body: JSON.stringify({ word, language, ui_language: uiLanguage }),
+    });
+  }
+
+  // ── Vision (Gemini image) ───────────────────────────────────────────
+
+  async visionOcr(file: Blob) {
+    const form = new FormData();
+    form.append("file", file, "upload.png");
+    return this.postForm<{
+      writing_systems: string[];
+      language_guess: string;
+      full_transcription: string;
+      words: string[];
+      sentences: string[];
+      alphabet_or_script_notes: string;
+      confidence_note: string;
+      raw_model_text: string;
+    }>("/api/vision/ocr", form);
+  }
+
+  async visionChineseHandwriting(file: Blob) {
+    const form = new FormData();
+    form.append("file", file, "stroke.png");
+    return this.postForm<{
+      primary_character: string;
+      alternatives: string[];
+      simplified: string;
+      traditional: string;
+      pinyin: string;
+      meaning: string;
+      stroke_count: number | null;
+      stroke_order_description: string;
+      example_words: string[];
+      usage_notes: string;
+      raw_model_text: string;
+    }>("/api/vision/chinese-handwriting", form);
   }
 
   // ── Chat ──────────────────────────────────────────────────────────────

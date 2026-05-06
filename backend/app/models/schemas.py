@@ -1,6 +1,47 @@
 from pydantic import BaseModel, Field
 
 
+# ── Etymology ──────────────────────────────────────────────────────────
+
+
+class EtymologyRequest(BaseModel):
+    word: str = Field(..., min_length=1, max_length=800)
+    language: str = ""
+    ui_language: str = "en"
+
+
+class EtymologyResponse(BaseModel):
+    content: str
+
+
+# ── Vision (image → text / Hanzi) ───────────────────────────────────────
+
+
+class VisionOcrResponse(BaseModel):
+    writing_systems: list[str] = Field(default_factory=list)
+    language_guess: str = ""
+    full_transcription: str = ""
+    words: list[str] = Field(default_factory=list)
+    sentences: list[str] = Field(default_factory=list)
+    alphabet_or_script_notes: str = ""
+    confidence_note: str = ""
+    raw_model_text: str = ""
+
+
+class ChineseHandwritingResponse(BaseModel):
+    primary_character: str = ""
+    alternatives: list[str] = Field(default_factory=list)
+    simplified: str = ""
+    traditional: str = ""
+    pinyin: str = ""
+    meaning: str = ""
+    stroke_count: int | None = None
+    stroke_order_description: str = ""
+    example_words: list[str] = Field(default_factory=list)
+    usage_notes: str = ""
+    raw_model_text: str = ""
+
+
 # ── Chat ──────────────────────────────────────────────────────────────
 
 class ChatMessage(BaseModel):

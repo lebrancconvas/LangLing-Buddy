@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     SUPABASE_URL: str = ""
     SUPABASE_KEY: str = ""
+    # Optional: from Supabase Database settings (direct Postgres); harmless if unused.
+    SUPABASE_DATABASE_PASSWORD: str = ""
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # Default chat models (free-tier friendly: high daily limits on AI Studio / Groq dev tier)
@@ -18,7 +20,11 @@ class Settings(BaseSettings):
     HF_CHAT_MODEL: str = "google/gemma-2-2b-it"
     OLLAMA_MODEL: str = "llama3.1:8b"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
 
 settings = Settings()
