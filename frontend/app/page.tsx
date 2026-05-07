@@ -1,57 +1,5 @@
 import Link from "next/link";
-import {
-  MessageSquare,
-  BrainCircuit,
-  BookOpen,
-  Mic,
-  Languages,
-  Clock,
-} from "lucide-react";
-
-const features = [
-  {
-    href: "/chat",
-    icon: MessageSquare,
-    title: "Chat Tutor",
-    description: "Learn languages & history through AI-powered conversations",
-    color: "from-blue-500 to-indigo-600",
-  },
-  {
-    href: "/quiz",
-    icon: BrainCircuit,
-    title: "Quiz & Flashcards",
-    description: "Test your knowledge with adaptive quizzes and spaced repetition",
-    color: "from-purple-500 to-pink-600",
-  },
-  {
-    href: "/story",
-    icon: BookOpen,
-    title: "Interactive Stories",
-    description: "Explore history through branching narrative adventures",
-    color: "from-amber-500 to-orange-600",
-  },
-  {
-    href: "/voice",
-    icon: Mic,
-    title: "Voice Practice",
-    description: "Practice pronunciation with speech recognition & synthesis",
-    color: "from-emerald-500 to-teal-600",
-  },
-  {
-    href: "/translate",
-    icon: Languages,
-    title: "Translation",
-    description: "Translate text with grammar explanations and analysis",
-    color: "from-cyan-500 to-blue-600",
-  },
-  {
-    href: "/timeline",
-    icon: Clock,
-    title: "Timeline Explorer",
-    description: "Visualize historical events on interactive timelines",
-    color: "from-rose-500 to-red-600",
-  },
-];
+import { LANDING_FEATURE_ROUTES } from "@/lib/site-nav";
 
 export default function Home() {
   return (
@@ -72,25 +20,30 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-6xl gap-6 px-6 pb-20 sm:grid-cols-2 lg:grid-cols-3">
-        {features.map((feature) => (
-          <Link
-            key={feature.href}
-            href={feature.href}
-            className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900 hover:shadow-xl hover:shadow-indigo-500/5"
-          >
-            <div
-              className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${feature.color} text-white shadow-lg transition-transform group-hover:scale-110`}
+      <section className="mx-auto w-full max-w-7xl px-6 pb-20">
+        <h2 className="mb-6 text-center text-sm font-semibold uppercase tracking-wider text-zinc-500">
+          Features
+        </h2>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {LANDING_FEATURE_ROUTES.map((feature) => (
+            <Link
+              key={feature.href}
+              href={feature.href}
+              className="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 transition-all hover:border-zinc-700 hover:bg-zinc-900 hover:shadow-xl hover:shadow-indigo-500/5"
             >
-              <feature.icon size={24} />
-            </div>
-            <h2 className="mb-2 text-xl font-bold text-white">{feature.title}</h2>
-            <p className="text-sm text-zinc-400">{feature.description}</p>
-            <div className="mt-4 text-sm font-medium text-indigo-400 transition-colors group-hover:text-indigo-300">
-              Get started &rarr;
-            </div>
-          </Link>
-        ))}
+              <div
+                className={`mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${feature.gradient} text-white shadow-lg transition-transform group-hover:scale-110`}
+              >
+                <feature.icon size={24} />
+              </div>
+              <h3 className="mb-2 text-xl font-bold text-white">{feature.label}</h3>
+              <p className="text-sm text-zinc-400">{feature.description}</p>
+              <div className="mt-4 text-sm font-medium text-indigo-400 transition-colors group-hover:text-indigo-300">
+                Open &rarr;
+              </div>
+            </Link>
+          ))}
+        </div>
       </section>
     </div>
   );

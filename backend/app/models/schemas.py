@@ -253,6 +253,23 @@ class TimelineResponse(BaseModel):
     topic: str
 
 
+# ── Maps ───────────────────────────────────────────────────────────────
+
+
+class MapSearchResult(BaseModel):
+    name: str = ""
+    display_name: str = ""
+    lat: float = 0.0
+    lon: float = 0.0
+    category: str = ""
+    type: str = ""
+    importance: float = 0.0
+
+
+class MapSearchResponse(BaseModel):
+    results: list[MapSearchResult]
+
+
 # ── AI Provider ───────────────────────────────────────────────────────
 
 class AIProvider(BaseModel):

@@ -2,39 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  MessageSquare,
-  BrainCircuit,
-  BookOpen,
-  BookMarked,
-  Mic,
-  Languages,
-  ScanText,
-  Brush,
-  Clock,
-  Settings,
-  Home,
-  ChevronLeft,
-  ChevronRight,
-  HelpCircle,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppStore } from "@/lib/stores/app-store";
 import { useHydrated } from "@/lib/hooks/use-hydration";
 import { LanguagePicker } from "@/components/language-picker";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/chat", label: "Chat Tutor", icon: MessageSquare },
-  { href: "/quiz", label: "Quiz & Cards", icon: BrainCircuit },
-  { href: "/story", label: "Stories", icon: BookOpen },
-  { href: "/voice", label: "Voice", icon: Mic },
-  { href: "/translate", label: "Translate", icon: Languages },
-  { href: "/etymology", label: "Etymology", icon: BookMarked },
-  { href: "/ocr", label: "Image to text", icon: ScanText },
-  { href: "/hanzi", label: "Chinese strokes", icon: Brush },
-  { href: "/timeline", label: "Timeline", icon: Clock },
-];
+import { FOOTER_NAV_ROUTES, MAIN_NAV_ROUTES } from "@/lib/site-nav";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -67,7 +40,7 @@ export function Sidebar() {
       </div>
 
       <nav className="mt-4 flex flex-1 flex-col gap-1 px-3">
-        {navItems.map((item) => {
+        {MAIN_NAV_ROUTES.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -89,30 +62,24 @@ export function Sidebar() {
 
       <div className="border-t border-border p-3 space-y-1">
         <LanguagePicker collapsed={!isOpen} />
-        <Link
-          href="/guide"
-          className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-            pathname === "/guide"
-              ? "bg-indigo-600/20 text-indigo-400"
-              : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
-          )}
-        >
-          <HelpCircle size={20} className="shrink-0" />
-          {isOpen && <span>User Guide</span>}
-        </Link>
-        <Link
-          href="/settings"
-          className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
-            pathname === "/settings"
-              ? "bg-indigo-600/20 text-indigo-400"
-              : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
-          )}
-        >
-          <Settings size={20} className="shrink-0" />
-          {isOpen && <span>Settings</span>}
-        </Link>
+        {FOOTER_NAV_ROUTES.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                isActive
+                  ? "bg-indigo-600/20 text-indigo-400"
+                  : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+              )}
+            >
+              <item.icon size={20} className="shrink-0" />
+              {isOpen && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
       </div>
     </aside>
   );

@@ -362,6 +362,36 @@ class APIClient {
       }>;
     }>(`/api/timeline/events/${encodeURIComponent(topic)}`);
   }
+
+  // ── Maps ──────────────────────────────────────────────────────────────
+
+  async mapPresets() {
+    return this.request<{
+      regions: Array<{ id: string; label: string; bounds: number[] }>;
+      countries: Array<{ id: string; name: string; bounds: number[] }>;
+      levels: Array<{ id: string; title: string; detail: string }>;
+    }>("/api/maps/presets");
+  }
+
+  async mapSearch(query: string, countryCode = "", limit = 10) {
+    const params = new URLSearchParams({
+      q: query.trim(),
+      limit: String(Math.min(Math.max(limit, 1), 15)),
+    });
+    const cc = countryCode.trim().toLowerCase();
+    if (cc.length === 2) params.set("country_code", cc);
+    return this.request<{
+      results: Array<{
+        name: string;
+        display_name: string;
+        lat: number;
+        lon: number;
+        category: string;
+        type: string;
+        importance: number;
+      }>;
+    }>(`/api/maps/search?${params}`);
+  }
 }
 
 export const api = new APIClient();
