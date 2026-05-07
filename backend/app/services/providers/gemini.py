@@ -1,4 +1,5 @@
 import base64
+import copy
 import json
 import logging
 from typing import Any
@@ -18,6 +19,35 @@ _BUILTIN_GEMINI_FALLBACKS: tuple[str, ...] = (
     "gemini-2.5-flash",
     "gemini-1.5-flash",
 )
+
+# Flash-Lite often rejects larger maxOutputTokens on some API tiers (400 INVALID_ARGUMENT).
+_LITE_MODEL_SUBSTRING = "lite"
+
+
+def _cap_max_output_tokens(model_id: str, requested: int) -> int:
+    """Clamp requested ceiling to values Gemini accepts reliably per model family."""
+    r = max(256, min(int(requested), 65536))
+    if _LITE_MODEL_SUBSTRING in model_id.lower():
+        return min(r, 4096)
+    return min(r, 8192)
+
+
+def _max_output_retry_chain(model_id: str, requested: int) -> list[int]:
+    """Descending limits to retry on HTTP 400 (invalid generationConfig, etc.)."""
+    cap = _cap_max_output_tokens(model_id, requested)
+    tiers: list[int] = [cap]
+    for t in (4096, 3072, 2048, 1536, 1024, 768, 512):
+        if t < tiers[-1]:
+            tiers.append(t)
+    return tiers
+
+
+def _gemini_headers(api_key: str) -> dict[str, str]:
+    """Prefer header auth so keys never appear in URLs or HTTPStatusError messages."""
+    return {
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key,
+    }
 
 
 def _model_candidates(primary: str) -> list[str]:
@@ -57,62 +87,83 @@ class GeminiProvider(BaseProvider):
         temperature = kwargs.get("temperature", 0.7)
         max_tokens = kwargs.get("max_tokens", 2048)
 
-        contents = []
-        if system_prompt:
-            contents.append({"role": "user", "parts": [{"text": system_prompt}]})
-            contents.append({"role": "model", "parts": [{"text": "Understood. I will follow these instructions."}]})
-        contents.append({"role": "user", "parts": [{"text": prompt}]})
-
-        payload = {
-            "contents": contents,
+        payload_base: dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": temperature,
                 "maxOutputTokens": max_tokens,
             },
         }
+        if system_prompt.strip():
+            payload_base["systemInstruction"] = {"parts": [{"text": system_prompt}]}
 
+        headers = _gemini_headers(self.api_key)
         last_detail = ""
+
         async with httpx.AsyncClient(timeout=60) as client:
             for model in models:
-                url = f"{GEMINI_API_URL}/{model}:generateContent?key={self.api_key}"
-                resp = await client.post(url, json=payload)
+                url = f"{GEMINI_API_URL}/{model}:generateContent"
+                token_chain = _max_output_retry_chain(model, max_tokens)
+                model_failed = False
 
-                if resp.status_code == 429:
-                    last_detail = resp.text[:400]
-                    logger.warning(
-                        "Gemini model %s rate limited (429), trying next model. %s",
-                        model,
-                        last_detail[:200],
-                    )
-                    continue
-                if resp.status_code == 404:
-                    last_detail = resp.text[:400]
-                    logger.warning(
-                        "Gemini model %s not found (404), trying fallback. Body: %s",
-                        model,
-                        last_detail,
-                    )
-                    continue
+                for max_out in token_chain:
+                    payload = copy.deepcopy(payload_base)
+                    payload["generationConfig"]["maxOutputTokens"] = max_out
+                    resp = await client.post(url, json=payload, headers=headers)
 
-                if resp.status_code != 200:
-                    last_detail = resp.text[:400]
-                    # Invalid model names sometimes surface as 400 INVALID_ARGUMENT
-                    if resp.status_code == 400 and (
-                        "was not found" in last_detail.lower()
-                        or "invalid" in last_detail.lower()
-                    ):
+                    if resp.status_code == 429:
+                        last_detail = resp.text[:400]
                         logger.warning(
-                            "Gemini model %s rejected (400), trying fallback", model
+                            "Gemini model %s rate limited (429), trying next model. %s",
+                            model,
+                            last_detail[:200],
                         )
-                        continue
-                    resp.raise_for_status()
+                        model_failed = True
+                        break
+                    if resp.status_code == 404:
+                        last_detail = resp.text[:400]
+                        logger.warning(
+                            "Gemini model %s not found (404), trying fallback. Body: %s",
+                            model,
+                            last_detail,
+                        )
+                        model_failed = True
+                        break
 
-                data = resp.json()
-                try:
-                    return data["candidates"][0]["content"]["parts"][0]["text"]
-                except (KeyError, IndexError) as exc:
-                    logger.error("Unexpected Gemini response: %s", json.dumps(data)[:500])
-                    raise RuntimeError("Failed to parse Gemini response") from exc
+                    if resp.status_code == 400:
+                        last_detail = resp.text[:800]
+                        low = last_detail.lower()
+                        logger.warning(
+                            "Gemini model %s HTTP 400 (maxOutputTokens=%s): %s",
+                            model,
+                            max_out,
+                            last_detail[:400],
+                        )
+                        # Unknown / wrong model id — lowering tokens will not help.
+                        if "was not found" in low:
+                            model_failed = True
+                            break
+                        # Typical Flash-Lite production fix: retry with smaller maxOutputTokens.
+                        if max_out != token_chain[-1]:
+                            continue
+                        model_failed = True
+                        break
+
+                    if resp.status_code != 200:
+                        last_detail = resp.text[:400]
+                        resp.raise_for_status()
+
+                    data = resp.json()
+                    try:
+                        return data["candidates"][0]["content"]["parts"][0]["text"]
+                    except (KeyError, IndexError) as exc:
+                        logger.error(
+                            "Unexpected Gemini response: %s", json.dumps(data)[:500]
+                        )
+                        raise RuntimeError("Failed to parse Gemini response") from exc
+
+                if model_failed:
+                    continue
 
         raise RuntimeError(
             "All Gemini models failed (rate limits, invalid ids, or errors). "
@@ -136,63 +187,88 @@ class GeminiProvider(BaseProvider):
         temperature = kwargs.get("temperature", 0.2)
         max_tokens = kwargs.get("max_tokens", 8192)
 
-        text_block = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
         b64 = base64.b64encode(image_bytes).decode("ascii")
         parts: list[dict[str, Any]] = [
-            {"text": text_block},
+            {"text": prompt},
             {"inline_data": {"mime_type": mime_type, "data": b64}},
         ]
-        payload: dict[str, Any] = {
+        payload_base: dict[str, Any] = {
             "contents": [{"role": "user", "parts": parts}],
             "generationConfig": {
                 "temperature": temperature,
                 "maxOutputTokens": max_tokens,
             },
         }
+        if system_prompt.strip():
+            payload_base["systemInstruction"] = {"parts": [{"text": system_prompt}]}
 
+        headers = _gemini_headers(self.api_key)
         last_detail = ""
+
         async with httpx.AsyncClient(timeout=120) as client:
             for model in models:
-                url = f"{GEMINI_API_URL}/{model}:generateContent?key={self.api_key}"
-                resp = await client.post(url, json=payload)
+                url = f"{GEMINI_API_URL}/{model}:generateContent"
+                token_chain = _max_output_retry_chain(model, max_tokens)
+                model_failed = False
 
-                if resp.status_code == 429:
-                    last_detail = resp.text[:400]
-                    logger.warning(
-                        "Gemini model %s rate limited (429), trying next model. %s",
-                        model,
-                        last_detail[:200],
-                    )
-                    continue
-                if resp.status_code == 404:
-                    last_detail = resp.text[:400]
-                    logger.warning(
-                        "Gemini model %s not found (404) [vision], trying fallback",
-                        model,
-                    )
-                    continue
+                for max_out in token_chain:
+                    payload = copy.deepcopy(payload_base)
+                    payload["generationConfig"]["maxOutputTokens"] = max_out
+                    resp = await client.post(url, json=payload, headers=headers)
 
-                if resp.status_code != 200:
-                    last_detail = resp.text[:400]
-                    if resp.status_code == 400 and (
-                        "was not found" in last_detail.lower()
-                        or "invalid" in last_detail.lower()
-                    ):
+                    if resp.status_code == 429:
+                        last_detail = resp.text[:400]
                         logger.warning(
-                            "Gemini model %s rejected (400) [vision], trying fallback",
+                            "Gemini model %s rate limited (429), trying next model. %s",
+                            model,
+                            last_detail[:200],
+                        )
+                        model_failed = True
+                        break
+                    if resp.status_code == 404:
+                        last_detail = resp.text[:400]
+                        logger.warning(
+                            "Gemini model %s not found (404) [vision], trying fallback",
                             model,
                         )
-                        continue
-                    resp.raise_for_status()
+                        model_failed = True
+                        break
 
-                data = resp.json()
-                try:
-                    return data["candidates"][0]["content"]["parts"][0]["text"]
-                except (KeyError, IndexError) as exc:
-                    logger.error(
-                        "Unexpected Gemini vision response: %s", json.dumps(data)[:500]
-                    )
-                    raise RuntimeError("Failed to parse Gemini vision response") from exc
+                    if resp.status_code == 400:
+                        last_detail = resp.text[:800]
+                        low = last_detail.lower()
+                        logger.warning(
+                            "Gemini model %s HTTP 400 [vision] (maxOutputTokens=%s): %s",
+                            model,
+                            max_out,
+                            last_detail[:400],
+                        )
+                        if "was not found" in low:
+                            model_failed = True
+                            break
+                        if max_out != token_chain[-1]:
+                            continue
+                        model_failed = True
+                        break
+
+                    if resp.status_code != 200:
+                        last_detail = resp.text[:400]
+                        resp.raise_for_status()
+
+                    data = resp.json()
+                    try:
+                        return data["candidates"][0]["content"]["parts"][0]["text"]
+                    except (KeyError, IndexError) as exc:
+                        logger.error(
+                            "Unexpected Gemini vision response: %s",
+                            json.dumps(data)[:500],
+                        )
+                        raise RuntimeError(
+                            "Failed to parse Gemini vision response"
+                        ) from exc
+
+                if model_failed:
+                    continue
 
         raise RuntimeError(
             "All Gemini vision models failed (rate limits, invalid ids, or errors). "
