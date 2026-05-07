@@ -17,10 +17,25 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+def _looks_like_quota_or_rate_limit(message: str) -> bool:
+    m = message.lower()
+    return (
+        "quota" in m
+        or "429" in m
+        or "rate limit" in m
+        or "resource exhausted" in m
+        or "exceeded your current quota" in m
+    )
+
+
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
 _ALLOWED_MIME = frozenset(
     {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
 )
+
+# OpenAI-compatible; Groq Llama 4 Scout honors this. Gemini ignores the kwarg locally.
+_JSON_OBJECT_RESPONSE_FORMAT = {"type": "json_object"}
 
 
 def _as_str_list(val) -> list[str]:
@@ -178,6 +193,7 @@ async def ocr_from_image(file: UploadFile = File(...)) -> VisionOcrResponse:
             system_prompt=OCR_SYSTEM,
             temperature=0.15,
             max_tokens=8192,
+            response_format=_JSON_OBJECT_RESPONSE_FORMAT,
         )
         parsed = extract_json_object(raw)
         if not parsed:
@@ -199,7 +215,10 @@ async def ocr_from_image(file: UploadFile = File(...)) -> VisionOcrResponse:
         raise
     except RuntimeError as exc:
         logger.warning("Vision OCR unavailable: %s", exc)
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        detail = str(exc)
+        if _looks_like_quota_or_rate_limit(detail):
+            raise HTTPException(status_code=429, detail=detail) from exc
+        raise HTTPException(status_code=503, detail=detail) from exc
     except Exception as exc:
         logger.exception("OCR failed")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -215,7 +234,8 @@ async def chinese_handwriting(file: UploadFile = File(...)) -> ChineseHandwritin
             mime,
             system_prompt=CHINESE_HW_SYSTEM,
             temperature=0.15,
-            max_tokens=16384,
+            max_tokens=8192,
+            response_format=_JSON_OBJECT_RESPONSE_FORMAT,
         )
         parsed = extract_json_object(raw)
         if not parsed:
@@ -236,7 +256,10 @@ async def chinese_handwriting(file: UploadFile = File(...)) -> ChineseHandwritin
         raise
     except RuntimeError as exc:
         logger.warning("Chinese handwriting vision unavailable: %s", exc)
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        detail = str(exc)
+        if _looks_like_quota_or_rate_limit(detail):
+            raise HTTPException(status_code=429, detail=detail) from exc
+        raise HTTPException(status_code=503, detail=detail) from exc
     except Exception as exc:
         logger.exception("Chinese handwriting failed")
         raise HTTPException(status_code=500, detail=str(exc)) from exc

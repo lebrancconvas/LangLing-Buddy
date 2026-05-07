@@ -1,119 +1,197 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { HANZI_READING_FIELDS } from "@/lib/hanzi-readings";
+
+export const metadata: Metadata = {
+  title: "Chinese readings & romanization manual — LangLing",
+  description:
+    "Pinyin, Zhuyin/Bopomofo, Wade–Giles, Cantonese, POJ, Hakka, Wu, and how LangLing labels them.",
+};
+
+const sectionClass = "scroll-mt-24 space-y-3";
 
 export default function RomanizationGuidePage() {
   return (
     <div className="min-h-screen px-6 py-10 text-zinc-200">
       <div className="mx-auto max-w-3xl space-y-10">
-        <Link
-          href="/hanzi"
-          className="inline-flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300"
-        >
-          <ArrowLeft size={16} /> Back to Chinese stroke recognition
-        </Link>
+        <nav className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <Link
+            href="/hanzi"
+            className="inline-flex items-center gap-2 text-sm text-orange-400 hover:text-orange-300"
+          >
+            <ArrowLeft size={16} /> Back to Chinese stroke
+          </Link>
+        </nav>
 
-        <div>
-          <h1 className="text-2xl font-bold text-white">Chinese readings & romanization guide</h1>
-          <p className="mt-2 text-sm text-zinc-400">
-            LangLing can show several ways to pronounce the same Chinese character. This page explains what those labels mean.
-            Machine-generated readings are for learning only—always confirm with dictionaries or native speakers for precise usage.
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-5 py-6">
+          <h1 className="text-2xl font-bold text-white">Chinese readings & romanization manual</h1>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+            LangLing’s <strong className="text-zinc-300">Chinese stroke</strong> page lists many ways one Hanzi can be
+            pronounced: Standard Mandarin, Zhuyin, older spellings, Cantonese, southern Min, Hakka, Hainanese, and Wu
+            romanizations. Use this page when a label is unfamiliar. Auto-generated text is for{" "}
+            <strong className="text-zinc-300">learning only</strong>—verify with speakers and reference books.
           </p>
         </div>
 
-        <section className="space-y-3">
+        <section id="overview" className={sectionClass}>
+          <h2 className="text-lg font-semibold text-white">On this page</h2>
+          <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-300">
+            <li>
+              <a href="#why-many" className="text-orange-400 hover:underline">
+                Why so many systems?
+              </a>
+            </li>
+            {HANZI_READING_FIELDS.map((f) => (
+              <li key={f.key}>
+                <a href={`#${f.guideAnchor}`} className="text-orange-400 hover:underline">
+                  {f.label}
+                </a>
+              </li>
+            ))}
+            <li>
+              <a href="#disclaimer" className="text-orange-400 hover:underline">
+                About AI-generated readings
+              </a>
+            </li>
+          </ol>
+        </section>
+
+        <section id="why-many" className={sectionClass}>
           <h2 className="text-lg font-semibold text-white">Why are there many systems?</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            Spoken Chinese has many regional varieties (often called &quot;dialects&quot;). Written Chinese is largely shared, but pronunciation differs.
-            Each region or language community has developed romanization (Latin letters) or phonetic symbols (like zhuyin) to teach or computer‑enter sounds.
-            There is no single global standard that replaces all others.
+            Written Chinese is broadly shared, but <strong>speech varies by region and language</strong> (“topolects” /
+            fāngyán 方言). Mandarin (Putonghua / Guoyu), Yue (Cantonese), Min (Hokkien, Teochew, Hainan branch),
+            Hakka, and Wu (e.g. Shanghai) have different sound inventories. Each community has developed phonetic
+            symbols (like <strong>Zhuyin</strong>) or <strong>romanizations</strong> (Latin letters) for teaching and
+            keyboards. None fully replace the others—you learn the system that matches your course, family, or locale.
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section id="pinyin" className={sectionClass}>
           <h2 className="text-lg font-semibold text-white">Hanyu Pinyin (汉语拼音)</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            The official romanization for <strong>Standard Mandarin</strong> in mainland China and widely used internationally.
-            Syllables combine an initial (consonant), a final (vowel glide), and a tone (often shown as marks over vowels: ā á ǎ à, or tone numbers).
+            Official romanization for <strong>Standard Mandarin</strong> (mainland China, international teaching,
+            most learner textbooks). A syllable is usually an <strong>initial</strong> (consonant onset), a{" "}
+            <strong>final</strong> (vowel + glide), and one of <strong>four full tones</strong> plus neutral tone.
           </p>
           <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-400">
-            <li>Example: 学 xué, 中国 Zhōngguó</li>
-            <li>Used in our field labeled &quot;Hanyu Pinyin&quot;.</li>
+            <li>
+              Tone marks on vowels: first tone ¯ (mā), second ´ (má), third ˇ (mǎ), fourth ` (mà); neutral is often
+              unstressed and unmarked (ma).
+            </li>
+            <li>Alternate style: tone numbers after the syllable (e.g. ma1–ma4).</li>
+            <li>Special spellings: zh, ch, sh; j, q, x; y/w as syllable boundaries; ü sometimes written v in IMEs.</li>
+            <li>Examples: <span className="font-mono text-zinc-300">xué</span>,{" "}
+            <span className="font-mono text-zinc-300">Zhōngguó</span>,{" "}
+            <span className="font-mono text-zinc-300">nǐ hǎo</span>.</li>
           </ul>
         </section>
 
-        <section className="space-y-3">
+        <section id="zhuyin-bopomofo" className={sectionClass}>
           <h2 className="text-lg font-semibold text-white">Zhuyin / Bopomofo (注音符號)</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            A phonetic alphabet used especially in Taiwan to represent Mandarin sounds. Symbols are non‑Latin (e.g. ㄅㄆㄇㄈ).
-            Zhuyin is aligned with Mandarin phonology; it is <strong>not</strong> a reading of Cantonese or Hokkien by itself.
-          </p>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-400">
-            <li>Often shown beside characters in Taiwanese educational materials and IMEs.</li>
-          </ul>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-white">Wade–Giles</h2>
-          <p className="text-sm leading-relaxed text-zinc-300">
-            An older romanization for Mandarin, common in older English books and place names (e.g. Peking vs Beijing).
-            Uses apostrophes and superscript tone numbers in some styles. Still useful when reading historical texts.
-          </p>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-white">Cantonese — Jyutping & Yale</h2>
-          <p className="text-sm leading-relaxed text-zinc-300">
-            <strong>Jyutping (粤拼)</strong> is a common Latin romanization for Cantonese, with finals like -aa, -eoi, and tone numbers (1–6).
-            <strong>Yale Cantonese</strong> is another influential system (different vowel spelling conventions).
+            Non-Latin phonetic letters for <strong>Mandarin</strong>, standard in Taiwan beside characters in
+            children’s books and on some signs. The nickname <strong>“Bopomofo”</strong> comes from the sounds of the
+            first four symbols: ㄅㄆㄇㄈ (bo-po-mo-fo). Tone marks are separate small strokes (ˊ ˇ ˋ ˙) placed at the
+            top-right of the syllable.
           </p>
           <p className="text-sm text-zinc-400">
-            Cantonese pronunciation is not predictable from Mandarin pinyin alone.
+            Zhuyin is <strong>not</strong> a reading of Cantonese or Hokkien by itself—it mirrors Mandarin phonology
+            only.
           </p>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-white">Hokkien — Pe̍h-ōe-jī (POJ)</h2>
+        <section id="wade-giles" className={sectionClass}>
+          <h2 className="text-lg font-semibold text-white">Wade–Giles</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            A Latin system associated with southern Min languages (including <strong>Taiwanese Hokkien</strong>). Uses diacritics for tones (e.g. ā, á, à, â, ă).
-            Spellings may differ slightly by region and church / literary tradition.
+            Historical <strong>Mandarin</strong> romanization (19th–20th c.). Uses apostrophes between syllable parts
+            and sometimes superscript tone numbers. You still see it in older books, names, and placenames (e.g.
+            Peking ↔ Beijing, Tsinghua ↔ Qinghua).
           </p>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-white">Teochew — Peng&apos;im and related</h2>
+        <section id="cantonese-jyutping" className={sectionClass}>
+          <h2 className="text-lg font-semibold text-white">Cantonese — Jyutping (粤拼)</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            Teochew (Chaozhou‑Swatow area) has several romanization schemes; <strong>Peng&apos;im</strong>‑style spellings are one common family.
-            Our field may show a best‑effort label; verify with Teochew‑specific resources.
+            Common Latin romanization for <strong>Yue/Cantonese</strong>. Finals like{" "}
+            <span className="font-mono">aa</span>, <span className="font-mono">eon</span>, endings{" "}
+            <span className="font-mono">-p -t -k</span> for stopped syllables. Six contrastive tones (sometimes
+            split into 9 onsets in detailed analysis) are usually written as numbers <strong>1–6</strong> after the
+            syllable (e.g. <span className="font-mono">si1</span>, <span className="font-mono">sik6</span>).
+          </p>
+          <p className="text-sm text-zinc-400">
+            You <strong>cannot</strong> infer Cantonese from Mandarin pinyin alone—the same character may sound
+            unrelated.
           </p>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-white">Hakka — Pin-Yim and others</h2>
+        <section id="cantonese-yale" className={sectionClass}>
+          <h2 className="text-lg font-semibold text-white">Cantonese — Yale Romanization</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            Hakka has multiple accents (e.g. Sixian, Meixian). <strong>Pin‑Yim</strong> and other romanizations exist; notation varies by source.
+            Another influential system for Cantonese, used in many textbooks and linguistic work. Vowel letters differ
+            from Jyutping (e.g. <span className="font-mono">y</span> vs <span className="font-mono">j</span> choices),
+            and tone may be marked with diacritics or <span className="font-mono">h</span> for low-register syllables
+            in some styles.
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section id="hokkien-poj" className={sectionClass}>
+          <h2 className="text-lg font-semibold text-white">Hokkien / Taiwanese — Pe̍h-ōe-jī (POJ)</h2>
+          <p className="text-sm leading-relaxed text-zinc-300">
+            Classic Latin romanization for <strong>Southern Min</strong>, including Taiwanese Hokkien. Uses diacritics
+            for <strong>eight tonal categories</strong> (shown as accents on vowels—ā, á, à, â, etc.). Developed in
+            missionary and literary traditions; spellings can vary slightly by church or locality.
+          </p>
+          <p className="text-sm text-zinc-400">
+            POJ corresponds to spoken Min—not to Mandarin pinyin. Same character ≠ same sound across languages.
+          </p>
+        </section>
+
+        <section id="teochew-pengim" className={sectionClass}>
+          <h2 className="text-lg font-semibold text-white">Teochew — Peng&apos;im / Dio̍k-ìu-pêng-im</h2>
+          <p className="text-sm leading-relaxed text-zinc-300">
+            <strong>Teochew</strong> (Chaoshan–Swatow Min) uses several romanization families; Peng&apos;im-style
+            tables are widespread in diaspora references. Tone marks may follow POJ-like habits or roman numerals depending
+            on the source—always confirm with Teochew-specific dictionaries.
+          </p>
+        </section>
+
+        <section id="hakka-pin-yim" className={sectionClass}>
+          <h2 className="text-lg font-semibold text-white">Hakka — Pin-Yim and related</h2>
+          <p className="text-sm leading-relaxed text-zinc-300">
+            <strong>Hakka</strong> has many county-level accents (e.g. Sixian, Meixian). Pin-Yim (“拼音”) romanizations in
+            Taiwan and mainland materials differ by standard; consonants such as voiced stops and finals like{" "}
+            <span className="font-mono">-rh</span> distinguish Hakka from Mandarin.
+          </p>
+        </section>
+
+        <section id="hainanese" className={sectionClass}>
           <h2 className="text-lg font-semibold text-white">Hainanese</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            Languages of Hainan include Min varieties with their own sound systems. Romanization is less standardized globally; entries may use POJ‑like or local conventions.
+            Covers varieties on Hainan and related southern Min strata. Orthography is <strong>less globally
+            standardized</strong>—you may see POJ-inspired spellings or local pedagogical romanizations.
+            Treat any single field label as illustrative.
           </p>
         </section>
 
-        <section className="space-y-3">
+        <section id="wugniu-wu" className={sectionClass}>
           <h2 className="text-lg font-semibold text-white">Shanghai / Wu — Wugniu and similar</h2>
           <p className="text-sm leading-relaxed text-zinc-300">
-            Wu varieties (including Shanghainese) have distinct phonology. Systems like <strong>Wugniu</strong> (or other Wu romanizations) attempt to write those sounds in Latin letters.
-            Not interchangeable with Mandarin pinyin.
+            <strong>Wu</strong> (吳語), including metropolitan Shanghainese, has rich tone sandhi and consonants absent
+            in Mandarin—e.g. voiced obstruents historically preserved in many lects.
+            <strong> Wugniu</strong> (吴拼 / 教会罗马字系) or other Wu latinizations transcribe local phonetics; they{" "}
+            <strong>do not substitute</strong> for pinyin.
           </p>
         </section>
 
-        <section className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-zinc-300">
-          <p className="font-medium text-amber-200/90">About LangLing’s auto-generated readings</p>
+        <section id="disclaimer" className="scroll-mt-24 rounded-xl border border-amber-500/25 bg-amber-500/5 p-5 text-sm text-zinc-300">
+          <h2 className="font-semibold text-amber-100/95">About LangLing’s auto-generated readings</h2>
           <p className="mt-2 leading-relaxed">
-            The model may leave a field empty when unsure. Tones, literary vs colloquial layers, and regional splits are easy to get wrong.
-            Use this app as a <strong>starting point</strong>; for exams, signage, or professional use, cross‑check authoritative dictionaries and language teachers.
+            Models may omit a field rather than hallucinate obscure variants. Literary vs colloquial readings, tone
+            sandhi chains, regional splits, and character polyphony are inherently hard. Combine this manual with offline
+            resources (MOE dictionaries for Mandarin/Zhuyin, LSHK for Cantonese Jyutping, church or academic POJ spelling
+            guides, etc.).
           </p>
         </section>
       </div>

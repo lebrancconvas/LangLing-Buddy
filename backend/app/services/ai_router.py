@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class AIRouter:
-    """Routes requests to the best available AI provider with smart fallback.
+    """Routes requests to providers with fallback.
 
-    Priority order: Gemini -> Groq -> HuggingFace -> Ollama (local).
-    If a preferred provider is specified, it gets highest priority.
+    Text: Gemini → Groq → Hugging Face → Ollama.
+    Vision (images): Gemini → Groq (Llama vision) → Ollama (/api/chat + vision tags).
     """
 
     def __init__(self) -> None:
@@ -62,9 +62,27 @@ class AIRouter:
                 last_error = exc
                 continue
 
-        raise RuntimeError(
-            f"All AI providers failed. Last error: {last_error}"
-        )
+        raise RuntimeError(f"All AI providers failed. Last error: {last_error}")
+
+    def _kwargs_for_vision_provider(
+        self, name: str, base_kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Per-provider knobs so Gemini/Ollama model ids are not leaked into Groq."""
+        pk = {k: v for k, v in base_kwargs.items() if k not in ("preferred_provider",)}
+        if name == "gemini":
+            vm = (settings.GEMINI_VISION_MODEL or "").strip()
+            if vm:
+                pk["model"] = vm
+            return pk
+        if name == "groq":
+            pk.pop("model", None)
+            pk.pop("ollama_vision_model", None)
+            return pk
+        if name == "ollama":
+            pk.pop("model", None)
+            return pk
+        pk.pop("model", None)
+        return pk
 
     async def generate_with_image(
         self,
@@ -72,45 +90,97 @@ class AIRouter:
         image_bytes: bytes,
         mime_type: str,
         system_prompt: str = "",
+        preferred_provider: str | None = None,
         **kwargs: Any,
     ) -> str:
-        """Vision / multimodal — Gemini only (requires GEMINI_API_KEY)."""
-        gemini = self.providers.get("gemini")
-        if not gemini or not await gemini.is_available():
-            raise RuntimeError(
-                "Image features require a configured Google Gemini API key (GEMINI_API_KEY)."
-            )
-        gen = getattr(gemini, "generate_with_image", None)
-        if gen is None:
-            raise RuntimeError("Gemini provider does not support vision")
+        """Vision / multimodal: Gemini → Groq → Ollama (providers with `generate_with_image`)."""
+        order = self._build_priority(preferred_provider)
+        last_err: BaseException | None = None
 
-        last_err: Exception | None = None
-        for attempt in range(2):
+        base_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+        for name in order:
+            provider = self.providers.get(name)
+            if not provider:
+                continue
+            gen = getattr(provider, "generate_with_image", None)
+            if gen is None or not callable(gen):
+                logger.debug("Provider %s has no multimodal API, skipping", name)
+                continue
+
             try:
+                available = await provider.is_available()
+            except Exception as exc:
+                logger.warning("Vision provider %s availability failed: %s", name, exc)
+                continue
+            if not available:
+                logger.debug("Vision provider %s not configured, skipping", name)
+                continue
+
+            try:
+                quota = await provider.get_quota_status()
+            except Exception as exc:
+                logger.warning(
+                    "Vision provider %s quota check failed: %s", name, exc
+                )
+                continue
+            if quota <= 0:
+                continue
+
+            vk = self._kwargs_for_vision_provider(name, base_kwargs)
+
+            if name == "gemini":
+                for attempt in range(2):
+                    try:
+                        logger.info("Routing vision to %s", name)
+                        return await gen(
+                            prompt,
+                            image_bytes,
+                            mime_type,
+                            system_prompt=system_prompt,
+                            **vk,
+                        )
+                    except RuntimeError as exc:
+                        last_err = exc
+                        msg = str(exc).lower()
+                        is_rate = (
+                            "rate limit" in msg
+                            or "429" in msg
+                            or "resource exhausted" in msg
+                            or "quota" in msg
+                        )
+                        if attempt == 0 and is_rate:
+                            logger.info(
+                                "Gemini vision exhausted/quota; waiting 2s then retry once "
+                                "before fallback providers."
+                            )
+                            await asyncio.sleep(2.0)
+                            continue
+                        logger.warning(
+                            "Gemini vision failed (attempt %s): %s", attempt + 1, exc
+                        )
+                        break
+                continue
+
+            try:
+                logger.info("Routing vision to %s", name)
                 return await gen(
                     prompt,
                     image_bytes,
                     mime_type,
                     system_prompt=system_prompt,
-                    **kwargs,
+                    **vk,
                 )
-            except RuntimeError as exc:
+            except Exception as exc:
+                logger.warning("Vision provider %s failed: %s", name, exc)
                 last_err = exc
-                msg = str(exc).lower()
-                is_rate = (
-                    "rate limit" in msg
-                    or "429" in msg
-                    or "resource exhausted" in msg
-                    or "quota" in msg
-                )
-                if attempt == 0 and is_rate:
-                    logger.info(
-                        "Gemini vision rate limited on all models; waiting 2s then retrying once."
-                    )
-                    await asyncio.sleep(2.0)
-                    continue
-                raise
-        raise last_err or RuntimeError("Vision request failed")
+                continue
+
+        raise RuntimeError(
+            "All vision-capable providers failed (configure GEMINI_API_KEY and/or "
+            "GROQ_API_KEY and/or pull a vision model for Ollama). "
+            f"Last error: {last_err}"
+        )
 
     async def get_available_providers(self) -> list[AIProvider]:
         results: list[AIProvider] = []

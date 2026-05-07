@@ -94,7 +94,7 @@ export const APP_ROUTE_DEFS: AppRouteDef[] = [
   {
     href: "/hanzi",
     label: "Chinese strokes",
-    description: "Draw 汉字, get ranked readings (pinyin, POJ, Cantonese, and more).",
+    description: "Draw 汉字 → up to 11 ranked guesses, full readings & in-page pronunciation manual.",
     icon: Brush,
     gradient: "from-rose-500 to-orange-600",
     group: "main",

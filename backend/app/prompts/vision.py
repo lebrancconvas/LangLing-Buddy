@@ -55,6 +55,9 @@ Return ONLY one JSON object with this exact structure:
 }}
 
 Rules:
-- Provide exactly **11** objects in `"candidates"`, **rank** 1 (best) through 11 (least likely). Same character must not repeat; use visually similar distinct characters if unsure.
-- Less certain readings must be "" rather than guessed.
+- Provide exactly **11** objects in `"candidates"`, **rank** 1 (best visual match) through 11 (least likely), sorted by ascending rank.
+- Same character must not repeat; suggest visually similar **distinct** Hanzi when unsure—learners rely on alternatives.
+- For each candidate fill **every** `readings` key when you can cite a plausible standard form:
+  Mandarin (pinyin, zhuyin, Wade–Giles), Cantonese (Jyutping and/or Yale where useful), southern Min POJ where applicable,
+  Teochew / Hakka / Hainanese / Wu (Wugniu or similar) when you have reference—otherwise use "" rather than fabrication.
 - If the drawing is not Chinese, use empty `"character"` strings and explain in `drawing_note`."""

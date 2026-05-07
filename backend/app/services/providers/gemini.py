@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import copy
 import json
@@ -14,14 +15,57 @@ logger = logging.getLogger(__name__)
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 # Built-in fallbacks after the primary model (often separate quota / RPM pools on free tier).
+# Note: `gemini-1.5-flash` (unversioned) returns 404 on v1beta generateContent for many projects;
+# use 2.x models only.
 _BUILTIN_GEMINI_FALLBACKS: tuple[str, ...] = (
     "gemini-2.5-flash-lite",
     "gemini-2.5-flash",
-    "gemini-1.5-flash",
+    "gemini-2.0-flash",
+)
+
+# Multimodal: prefer full Flash before Flash-Lite (lite may reject or poorly support vision).
+_BUILTIN_GEMINI_VISION_FALLBACKS: tuple[str, ...] = (
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-lite",
 )
 
 # Flash-Lite often rejects larger maxOutputTokens on some API tiers (400 INVALID_ARGUMENT).
 _LITE_MODEL_SUBSTRING = "lite"
+
+# Google sometimes returns 502/503/504; retry briefly then try the next model (like 429).
+_TRANSIENT_HTTP: frozenset[int] = frozenset((502, 503, 504))
+_TRANSIENT_RETRIES = 2  # up to 3 POST attempts per (model, max_out)
+
+
+async def _post_generate_content(
+    client: httpx.AsyncClient,
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str],
+    *,
+    log_label: str,
+) -> httpx.Response:
+    """POST with short exponential backoff on transient gateway errors."""
+    last: httpx.Response | None = None
+    for attempt in range(_TRANSIENT_RETRIES + 1):
+        resp = await client.post(url, json=payload, headers=headers)
+        last = resp
+        if resp.status_code in _TRANSIENT_HTTP and attempt < _TRANSIENT_RETRIES:
+            wait = 1.0 * (2**attempt)
+            logger.warning(
+                "Gemini %s HTTP %s (transient), retry %s/%s in %.1fs",
+                log_label,
+                resp.status_code,
+                attempt + 1,
+                _TRANSIENT_RETRIES,
+                wait,
+            )
+            await asyncio.sleep(wait)
+            continue
+        return resp
+    assert last is not None
+    return last
 
 
 def _cap_max_output_tokens(model_id: str, requested: int) -> int:
@@ -50,13 +94,16 @@ def _gemini_headers(api_key: str) -> dict[str, str]:
     }
 
 
-def _model_candidates(primary: str) -> list[str]:
+def _model_candidates(primary: str, *, multimodal: bool = False) -> list[str]:
     """Primary first, then built-ins and GEMINI_MODEL_FALLBACKS from settings (deduped)."""
+    builtins = (
+        _BUILTIN_GEMINI_VISION_FALLBACKS if multimodal else _BUILTIN_GEMINI_FALLBACKS
+    )
     out: list[str] = []
     p = primary.strip()
     if p:
         out.append(p)
-    for m in _BUILTIN_GEMINI_FALLBACKS:
+    for m in builtins:
         if m not in out:
             out.append(m)
     extra = (settings.GEMINI_MODEL_FALLBACKS or "").strip()
@@ -82,7 +129,7 @@ class GeminiProvider(BaseProvider):
             raise RuntimeError("Gemini API key not configured")
 
         primary = kwargs.get("model", self.default_model)
-        models = _model_candidates(primary)
+        models = _model_candidates(primary, multimodal=False)
 
         temperature = kwargs.get("temperature", 0.7)
         max_tokens = kwargs.get("max_tokens", 2048)
@@ -109,7 +156,13 @@ class GeminiProvider(BaseProvider):
                 for max_out in token_chain:
                     payload = copy.deepcopy(payload_base)
                     payload["generationConfig"]["maxOutputTokens"] = max_out
-                    resp = await client.post(url, json=payload, headers=headers)
+                    resp = await _post_generate_content(
+                        client,
+                        url,
+                        payload,
+                        headers,
+                        log_label=model,
+                    )
 
                     if resp.status_code == 429:
                         last_detail = resp.text[:400]
@@ -149,6 +202,16 @@ class GeminiProvider(BaseProvider):
                         model_failed = True
                         break
 
+                    if resp.status_code in _TRANSIENT_HTTP:
+                        last_detail = resp.text[:400]
+                        logger.warning(
+                            "Gemini model %s HTTP %s after retries, trying next model.",
+                            model,
+                            resp.status_code,
+                        )
+                        model_failed = True
+                        break
+
                     if resp.status_code != 200:
                         last_detail = resp.text[:400]
                         resp.raise_for_status()
@@ -166,8 +229,9 @@ class GeminiProvider(BaseProvider):
                     continue
 
         raise RuntimeError(
-            "All Gemini models failed (rate limits, invalid ids, or errors). "
-            "Last detail: " + (last_detail or "unknown")
+            "All Gemini models failed (quota/rate limits, transient errors, or invalid ids). "
+            "Check https://ai.google.dev/gemini-api/docs/rate-limits — Last detail: "
+            + (last_detail or "unknown")
         )
 
     async def generate_with_image(
@@ -183,7 +247,7 @@ class GeminiProvider(BaseProvider):
             raise RuntimeError("Gemini API key not configured")
 
         primary = kwargs.get("model", self.default_model)
-        models = _model_candidates(primary)
+        models = _model_candidates(primary, multimodal=True)
         temperature = kwargs.get("temperature", 0.2)
         max_tokens = kwargs.get("max_tokens", 8192)
 
@@ -214,7 +278,13 @@ class GeminiProvider(BaseProvider):
                 for max_out in token_chain:
                     payload = copy.deepcopy(payload_base)
                     payload["generationConfig"]["maxOutputTokens"] = max_out
-                    resp = await client.post(url, json=payload, headers=headers)
+                    resp = await _post_generate_content(
+                        client,
+                        url,
+                        payload,
+                        headers,
+                        log_label=f"{model} [vision]",
+                    )
 
                     if resp.status_code == 429:
                         last_detail = resp.text[:400]
@@ -251,6 +321,16 @@ class GeminiProvider(BaseProvider):
                         model_failed = True
                         break
 
+                    if resp.status_code in _TRANSIENT_HTTP:
+                        last_detail = resp.text[:400]
+                        logger.warning(
+                            "Gemini model %s HTTP %s [vision] after retries, trying next model.",
+                            model,
+                            resp.status_code,
+                        )
+                        model_failed = True
+                        break
+
                     if resp.status_code != 200:
                         last_detail = resp.text[:400]
                         resp.raise_for_status()
@@ -271,8 +351,9 @@ class GeminiProvider(BaseProvider):
                     continue
 
         raise RuntimeError(
-            "All Gemini vision models failed (rate limits, invalid ids, or errors). "
-            "Last detail: " + (last_detail or "unknown")
+            "All Gemini vision models failed (quota/rate limits, transient errors, or invalid ids). "
+            "Check https://ai.google.dev/gemini-api/docs/rate-limits — Last detail: "
+            + (last_detail or "unknown")
         )
 
     async def is_available(self) -> bool:
