@@ -13,6 +13,7 @@ import {
   Clock,
   HelpCircle,
   Settings,
+  Library,
 } from "lucide-react";
 
 export type AppRouteDef = {
@@ -49,6 +50,15 @@ export const APP_ROUTE_DEFS: AppRouteDef[] = [
     description: "Quizzes with explanations, spaced-repetition flashcards, and AI summaries.",
     icon: BrainCircuit,
     gradient: "from-purple-500 to-pink-600",
+    group: "main",
+  },
+  {
+    href: "/vocab",
+    label: "Learning Vocab",
+    description:
+      "Essential words per language—pronunciation, English & Thai glosses, examples, and a quick review quiz.",
+    icon: Library,
+    gradient: "from-teal-500 to-emerald-600",
     group: "main",
   },
   {
